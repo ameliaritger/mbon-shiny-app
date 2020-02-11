@@ -1,0 +1,161 @@
+---
+title: "Shiny app - prep"
+author: "Amelia Ritger"
+date: "2/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(janitor)
+library(sf)
+library(tmap)
+library(vegan)
+```
+
+## Organize the data 
+```{r, message=FALSE, warning=FALSE}
+#Read in data
+reef <- read_csv("MBONReef_Histogram.csv")
+
+#Tidy up the data
+reef_tidy <- reef %>%
+  clean_names() %>% #standardize names
+  #rename(latitude=lat_start, longitude=long_start) %>% #rename latitude and longitude
+  group_by(location) %>% #group by location to get average lat/long values for each location
+  mutate(latitude=mean(lat_start), longitude=mean(long_start)) %>% #get average lat/long values (because that's how that works...)
+  ungroup() %>% #really important, we don't want to confuse R!
+  pivot_longer("annelida_cirriformia_luxuriosa":"substrate_amphipod_tube_complex") %>%  #make long form
+  separate(name, into="phylum", sep="_", remove=FALSE) %>% #Add column for phylum name
+  mutate(vectorized_name=str_split(name, pattern="_")) %>% #In case this is useful...
+  filter(!phylum=="no") %>% #remove values related to data collection issue
+  filter(!phylum=="substrate") #remove substrate values
+
+#Because it's faster to do it outside tidyverse
+reef_tidy$binary <- ifelse(reef_tidy$value>0, 1, 0) #Add presence/absence column
+reef_tidy$species <- gsub("^[^_]*_","",reef_tidy$name, perl=TRUE) #Add column for species name
+reef_tidy$longitude <- ifelse(reef_tidy$longitude<0, reef_tidy$longitude, -reef_tidy$longitude) #because all longitude values in this region should be negative 
+
+#Do some more tidying
+reef_tidy <- reef_tidy %>%
+  st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>% #Make sticky geometries for lat/long
+  mutate(species=str_replace_all(species, "_", " "),
+         species=str_to_sentence(species)) %>%  #Make species names actually look like species names
+  filter(!str_detect(species, pattern="dead")) %>% #Remove instances where organism is dead
+  mutate(species_clean = str_remove(species, pattern="unknown"))
+  #replace(species_clean, "hey there", str_detect(species_clean, "sponge"))
+```
+
+### Create different datasets for different uses
+```{r, message=FALSE, warning=FALSE}
+#Subset for a species
+reef_species <- reef_tidy %>%
+  filter(binary > "0") %>% #filter out species not present
+  mutate(focal_phylum="annelida") %>% #pick a focal phylum (BASED ON INPUT)
+  mutate(to_match = ifelse(phylum==focal_phylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
+  filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
+  #filter(!phylum=="annelida") %>% #remove the focal phylum, because we don't need to see co-occurrence of focal phylum with focal phylum (BASED ON INPUT)
+  filter(phylum==c("annelida","porifera","mollusca")) #select only the coocurring species you want to look at (BASED ON INPUT)
+
+#Subset for a location
+reef_location <- reef_tidy %>%
+  filter(binary > "0") %>% #filter out species not present
+  mutate(focal_location="Rodes") %>% #pick a focal location (BASED ON INPUT)
+  mutate(to_match = ifelse(location==focal_location, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
+  filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
+  #filter(!phylum=="annelida") %>% #remove the focal phylum, because we don't need to see co-occurrence of focal phylum with focal phylum (BASED ON INPUT)
+  filter(phylum==c("annelida","porifera","mollusca")) #select only the coocurring species you want to look at (BASED ON INPUT)
+
+#Find average abundance values of each phylum for each location
+reef_summary <- reef_tidy %>%
+  filter(binary > "0") %>% #filter out species not present
+  group_by(location,phylum) %>% #group by location, then lat/long
+  summarize(mean_count = mean(value), #get the mean count
+            median_count = median(value),
+            sd_count = sd(value), #get the s.d. count
+            sample_size = n()) %>%  #get the sample size
+  filter(phylum==c("annelida")) #select only the species you want to look at (BASED ON INPUT)
+
+#Prep data to find species diversity/richness for each site
+reef_vegan <- reef_tidy %>%
+  group_by(location,species_clean) %>% #group by location, then lat/long
+  summarize(mean_count = mean(value)) %>%  #get the mean count
+  as.data.frame %>% #remove sticky geometry
+  select(location, species_clean, mean_count, geometry) %>%
+  pivot_wider(names_from=species_clean, values_from=mean_count) %>%
+  select(`Abietinaria spp`:`Zonaria farlowii`)
+
+#Calculate species diversity and richness for each site
+diversity <- diversity(reef_vegan)
+richness <- specnumber(reef_vegan)
+
+#Add this information to a dataframe
+reef_diversity <- reef_summary %>% 
+  select(geometry) %>% 
+  add_column(diversity, richness)
+```
+
+### Let's try plotting something
+
+#### The counts of each phylum (or species) occurring at each location:
+```{r}
+ggplot(reef_tidy, aes(x=phylum)) +
+  geom_bar(aes(phylum)) +
+  facet_wrap(~location)
+```
+
+I will allow people to pick their phylum (or species) of interest and pick their location of interest
+
+### Let's try plotting something else
+
+#### The counts of co-occuring phyla (or species) with a focal phylum (or species)
+```{r}
+ggplot(reef_species, aes(x=phylum)) +
+  geom_bar(aes(phylum)) +
+  coord_flip()
+```
+I will allow people to pick their focal phylum and co-occuring phylum
+
+Create a table of percent co-occurence of focal species and neighbor species, given total number times focal species made an appearance
+```{r}
+
+```
+
+### Now let's make a map!
+library(rnaturalearth)
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+ggplot(data = world) +
+    geom_sf() +
+    geom_point(data=reef_tidy, aes(x = longitude, y = latitude), size = 4, 
+        shape = 23, fill = "darkred") +
+    coord_sf(xlim = c(-121, -118.5), ylim = c(33, 35), expand = FALSE)
+  
+### Let's make an interactive map! (phylum)
+```{r}
+reef_sf <- st_as_sf(reef_summary, coords=geometry, crs=4326) #make data sf geometry friendly
+
+reef_map <- tm_basemap("Esri.WorldImagery") +
+  tm_shape(reef_sf) + #tells tmap where we're looking (i.e. california)
+  #tm_dots(labels="value", col="purple", size=0.5) #tells tmap to plot points on map labelled with id associated
+  tm_symbols(id="location", col = "purple", size = "mean_count", scale = 3) +
+  tm_facets(by = "phylum")
+
+tmap_mode("view") #view = interactive
+reef_map
+```
+
+### Let's make an interactive map! (species diversity/richness)
+```{r}
+reef_sf <- st_as_sf(reef_diversity, coords=geometry, crs=4326) #make data sf geometry friendly
+
+reef_map <- tm_basemap("Esri.WorldImagery") +
+  tm_shape(reef_sf) + #tells tmap where we're looking (i.e. california)
+  #tm_dots(labels="value", col="purple", size=0.5) #tells tmap to plot points on map labelled with id associated
+  tm_symbols(id="location", col = "purple", size = "richness", scale = 3) #(BASED ON INPUT)
+
+tmap_mode("view") #view = interactive
+reef_map
+```
