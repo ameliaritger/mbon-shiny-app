@@ -67,15 +67,14 @@ reef_location <- reef_tidy %>%
   #filter(!phylum=="annelida") %>% #remove the focal phylum, because we don't need to see co-occurrence of focal phylum with focal phylum (BASED ON INPUT)
   filter(phylum==c("annelida")) #select only the coocurring species you want to look at (BASED ON INPUT)
 
-#Find average abundance values of each phylum for each location
+#Find average abundance values for each location
 reef_summary <- reef_tidy %>%
   filter(binary > "0") %>% #filter out species not present
   group_by(location,phylum) %>% #group by location, then lat/long
   summarize(mean_count = mean(value), #get the mean count
             median_count = median(value),
             sd_count = sd(value), #get the s.d. count
-            sample_size = n()) %>%  #get the sample size
-  filter(phylum==c("annelida")) #select only the species you want to look at (BASED ON INPUT)
+            sample_size = n())
 
 #Prep data to find species diversity/richness for each site
 reef_vegan <- reef_tidy %>%
@@ -100,8 +99,14 @@ reef_diversity <- reef_summary %>%
 
 #### The counts of each phylum (or species) occurring at each location:
 ```{r}
-ggplot(reef_tidy, aes(x=phylum)) +
-  geom_bar(aes(phylum)) +
+ggplot(reef_summary, aes(x=phylum,y=mean_count)) +
+  geom_point(color="black",
+             size=2) +
+  geom_errorbar(aes(x=phylum,
+                    ymin=mean_count - sd_count,
+                    ymax=mean_count + sd_count), 
+                width=0.1) +
+  scale_y_continuous(limits = c(-10,45)) +
   facet_wrap(~location)
 ```
 
