@@ -56,7 +56,7 @@ reef_species <- reef_tidy %>%
   mutate(to_match = ifelse(phylum==focal_phylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
   filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
   #filter(!phylum=="annelida") %>% #remove the focal phylum, because we don't need to see co-occurrence of focal phylum with focal phylum (BASED ON INPUT)
-  filter(phylum==c("annelida","porifera","mollusca")) #select only the coocurring species you want to look at (BASED ON INPUT)
+  filter(phylum==c("annelida")) #select only the coocurring species you want to look at (BASED ON INPUT)
 
 #Subset for a location
 reef_location <- reef_tidy %>%
@@ -65,7 +65,7 @@ reef_location <- reef_tidy %>%
   mutate(to_match = ifelse(location==focal_location, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
   filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
   #filter(!phylum=="annelida") %>% #remove the focal phylum, because we don't need to see co-occurrence of focal phylum with focal phylum (BASED ON INPUT)
-  filter(phylum==c("annelida","porifera","mollusca")) #select only the coocurring species you want to look at (BASED ON INPUT)
+  filter(phylum==c("annelida")) #select only the coocurring species you want to look at (BASED ON INPUT)
 
 #Find average abundance values of each phylum for each location
 reef_summary <- reef_tidy %>%
@@ -122,17 +122,6 @@ Create a table of percent co-occurence of focal species and neighbor species, gi
 
 ```
 
-### Now let's make a map!
-library(rnaturalearth)
-
-world <- ne_countries(scale = "medium", returnclass = "sf")
-
-ggplot(data = world) +
-    geom_sf() +
-    geom_point(data=reef_tidy, aes(x = longitude, y = latitude), size = 4, 
-        shape = 23, fill = "darkred") +
-    coord_sf(xlim = c(-121, -118.5), ylim = c(33, 35), expand = FALSE)
-  
 ### Let's make an interactive map! (phylum)
 ```{r}
 reef_sf <- st_as_sf(reef_summary, coords=geometry, crs=4326) #make data sf geometry friendly
@@ -154,7 +143,7 @@ reef_sf <- st_as_sf(reef_diversity, coords=geometry, crs=4326) #make data sf geo
 reef_map <- tm_basemap("Esri.WorldImagery") +
   tm_shape(reef_sf) + #tells tmap where we're looking (i.e. california)
   #tm_dots(labels="value", col="purple", size=0.5) #tells tmap to plot points on map labelled with id associated
-  tm_symbols(id="location", col = "purple", size = "richness", scale = 3) #(BASED ON INPUT)
+  tm_symbols(id="location", col = "purple", size = "diversity", scale = 3) #(BASED ON INPUT)
 
 tmap_mode("view") #view = interactive
 reef_map
