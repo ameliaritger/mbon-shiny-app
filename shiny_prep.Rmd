@@ -57,25 +57,28 @@ reef_tidy <- reef_tidy %>%
 unique(reef_tidy$genus)
 ```
 
-### Create different datasets for different uses
+## Create different datasets for different uses
+
+#### Subset for a phylum
 ```{r, message=FALSE, warning=FALSE}
-#Subset for a species
-reef_species <- reef_tidy %>%
+reef_phylum <- reef_tidy %>%
   filter(binary > "0") %>% #filter out species not present
   mutate(focal_phylum="annelida") %>% #pick a focal phylum (BASED ON INPUT)
   mutate(to_match = ifelse(phylum==focal_phylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
   filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
   #filter(!phylum=="annelida") %>% #remove the focal phylum, because we don't need to see co-occurrence of focal phylum with focal phylum (BASED ON INPUT)
-  filter(phylum==c("annelida")) #select only the coocurring species you want to look at (BASED ON INPUT)
+  filter(phylum==c("annelida")) #select only the coocurring phyla you want to look at (BASED ON INPUT)
+```
 
-#Subset for a location
+#### Subset for a location
+```{r, message=FALSE, warning=FALSE}
 reef_location <- reef_tidy %>%
   filter(binary > "0") %>% #filter out species not present
-  mutate(focal_location="Rodes") %>% #pick a focal location (BASED ON INPUT)
+  mutate(focal_location="Naples") %>% #pick a focal location (BASED ON INPUT)
   mutate(to_match = ifelse(location==focal_location, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
   filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
   #filter(!phylum=="annelida") %>% #remove the focal phylum, because we don't need to see co-occurrence of focal phylum with focal phylum (BASED ON INPUT)
-  filter(phylum==c("annelida")) #select only the coocurring species you want to look at (BASED ON INPUT)
+  filter(phylum==c("annelida")) #select only the coocurring phyla you want to look at (BASED ON INPUT)
 
 #Find average abundance values for each location
 reef_summary <- reef_tidy %>%
@@ -85,27 +88,32 @@ reef_summary <- reef_tidy %>%
             median_count = median(value),
             sd_count = sd(value), #get the s.d. count
             sample_size = n())
+```
 
-#Prep data to find species diversity/richness for each site
-reef_vegan <- reef_tidy %>%
-  group_by(location,species_clean) %>% #group by location, then lat/long
+#### Find species diversity/richness for each site
+```{r, message=FALSE, warning=FALSE}
+#Prep data
+reef_vegan<- reef_tidy %>% #named so because of the vegan package!
+  group_by(location,grouped_species) %>% #group by location, then lat/long
   summarize(mean_count = mean(value)) %>%  #get the mean count
   as.data.frame %>% #remove sticky geometry
-  select(location, species_clean, mean_count, geometry) %>%
-  pivot_wider(names_from=species_clean, values_from=mean_count) %>%
-  select(`Abietinaria spp`:`Zonaria farlowii`)
+  select(location, grouped_species, mean_count, geometry) %>%
+  pivot_wider(names_from=grouped_species, values_from=mean_count)
 
 #Calculate species diversity and richness for each site
-diversity <- diversity(reef_vegan)
-richness <- specnumber(reef_vegan)
+reef_vegan_subset <- reef_vegan %>% 
+  select(`Abietinaria spp`:`Zonaria farlowii`)
 
-#Add this information to a dataframe
-reef_diversity <- reef_summary %>% 
-  select(geometry) %>% 
+diversity <- diversity(reef_vegan_subset)
+richness <- specnumber(reef_vegan_subset)
+
+#Add this information to the vegan dataframe
+reef_vegan <- reef_vegan %>% 
+  select(location, geometry) %>% 
   add_column(diversity, richness)
 ```
 
-### Let's try plotting something
+## Let's try plotting something
 
 #### The counts of each phylum (or species) occurring at each location:
 ```{r}
