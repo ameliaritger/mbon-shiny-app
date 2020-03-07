@@ -40,21 +40,21 @@ reef_tidy$longitude <- ifelse(reef_tidy$longitude<0, reef_tidy$longitude, -reef_
 #Do some more tidying
 reef_tidy <- reef_tidy %>%
   st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>% #Make sticky geometries for lat/long
-  separate(species, into="genus", sep="_", remove=FALSE) %>% #Add column for phylum name
+  mutate(species = str_replace(species, pattern="tube worm", "tubeworm")) %>%  #replace "tube worm" with "tubeworm" for later grouping
+  separate(species, into="genus", sep="_", remove=FALSE) %>% #Add column for genus name
   mutate(species=str_replace_all(species, "_", " "),
          species=str_to_sentence(species)) %>%  #Make species names actually look like species names
-  filter(!str_detect(species, pattern="dead")) %>% #Remove instances where organism is dead
-  mutate(species_clean = str_remove(species, pattern="unknown"))
+  filter(!str_detect(species, pattern="dead")) #Remove instances where organism is dead
+  #mutate(species_clean = str_remove(species, pattern="unknown"))
   #replace(species_clean, "hey there", str_detect(species_clean, "sponge"))
 
-reef_new <- reef_tidy %>% 
-  mutate(newgenus = ifelse(str_detect(species, pattern = " worm"), "Other worms", ifelse(str_detect(species, pattern = "tubeworm"), "Tubeworms", species))) #convert all species with "worm"/"tubeworm" in the name to other worms/tubeworms
-                           
-                           
+#Now time for some massive if, else statements to group organisms not identified to species
+reef_tidy <- reef_tidy %>% 
+  mutate(grouped_species = ifelse(str_detect(species, pattern = " worm"), "Other worms", ifelse(str_detect(species, pattern = "phoronid"), "Other worms", ifelse(str_detect(species, pattern = "tubeworm"), "Tubeworms", ifelse(str_detect(species, pattern = "algae"), "Other Algaes", ifelse(str_detect(species, pattern = "Filamentous"), "Other Algaes", ifelse(str_detect(species, pattern = "turf"), "Other Algaes", ifelse(str_detect(species, pattern = "blade"), "Other Algaes", ifelse(str_detect(species, pattern = "tunicate"), "Other Tunicates", ifelse(str_detect(species, pattern = "anemone"), "Other anemones", ifelse(str_detect(species, pattern = "bryozoan"), "Other bryozoans", ifelse(str_detect(species, pattern = "White fan"), "Other bryozoans", ifelse(str_detect(species, pattern = "sponge"), "Other Sponges", ifelse(str_detect(species, pattern = "Orange encrusting"), "Other Sponges", ifelse(str_detect(species, pattern = "Haliclona sp"), "Other Sponges", ifelse(str_detect(species, pattern = "zigzag"), "Other Hydroids", species)))))))))))))))) %>%
+  mutate(grouped_genus = ifelse(str_detect(grouped_species, pattern = "Other"), grouped_species, ifelse(str_detect(grouped_species, pattern = "orange"), grouped_species, ifelse(str_detect(grouped_species, pattern = "White"), grouped_species, ifelse(str_detect(grouped_species, pattern = "encrusting"), grouped_species, ifelse(str_detect(grouped_species, pattern = "zigzag"), grouped_species, ifelse(str_detect(grouped_species, pattern = "solitary"), grouped_species, ifelse(str_detect(grouped_species, pattern = "sectioned"), grouped_species, genus)))))))) %>% #do the same for genus
+  mutate(grouped_genus = str_to_title(grouped_genus)) #capitalize first word of genus
 
-  ifelse((str_detect(species), pattern = "worm")="worm", TRUE, FALSE)
-
-
+unique(reef_tidy$genus)
 ```
 
 ### Create different datasets for different uses
