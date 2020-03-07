@@ -87,6 +87,7 @@ reef_summary <- reef_tidy %>%
   summarize(mean_count = mean(value), #get the mean count
             median_count = median(value),
             sd_count = sd(value), #get the s.d. count
+            iqr = IQR(value), #get the interquartile range for the count
             sample_size = n())
 ```
 
@@ -96,12 +97,12 @@ reef_summary <- reef_tidy %>%
 reef_vegan<- reef_tidy %>% #named so because of the vegan package!
   group_by(location,grouped_species) %>% #group by location, then lat/long
   summarize(mean_count = mean(value)) %>%  #get the mean count
-  as.data.frame %>% #remove sticky geometry
-  select(location, grouped_species, mean_count, geometry) %>%
-  pivot_wider(names_from=grouped_species, values_from=mean_count)
+  select(location, grouped_species, mean_count, geometry)
 
 #Calculate species diversity and richness for each site
-reef_vegan_subset <- reef_vegan %>% 
+reef_vegan_subset <- reef_vegan %>%
+  as.data.frame %>% #remove sticky geometry
+  pivot_wider(names_from=grouped_species, values_from=mean_count) %>% 
   select(`Abietinaria spp`:`Zonaria farlowii`)
 
 diversity <- diversity(reef_vegan_subset)
@@ -109,13 +110,14 @@ richness <- specnumber(reef_vegan_subset)
 
 #Add this information to the vegan dataframe
 reef_vegan <- reef_vegan %>% 
+  pivot_wider(names_from=grouped_species, values_from=mean_count) %>% #get unique values of location (and ignore the species...)
   select(location, geometry) %>% 
   add_column(diversity, richness)
 ```
 
 ## Let's try plotting something
 
-#### The counts of each phylum (or species) occurring at each location:
+#### The mean counts of each phylum (or species) occurring at each location:
 ```{r}
 ggplot(reef_summary, aes(x=phylum,y=mean_count)) +
   geom_point(color="black",
@@ -128,13 +130,26 @@ ggplot(reef_summary, aes(x=phylum,y=mean_count)) +
   facet_wrap(~location)
 ```
 
+#### The median counts of each phylum (or species) occurring at each location:
+```{r}
+ggplot(reef_summary, aes(x=phylum,y=median_count)) +
+  geom_point(color="black",
+             size=2) +
+  geom_errorbar(aes(x=phylum,
+                    ymin=median_count - iqr,
+                    ymax=median_count + iqr), 
+                width=0.1) +
+  scale_y_continuous(limits = c(-10,45)) +
+  facet_wrap(~location)
+```
+
 I will allow people to pick their phylum (or species) of interest and pick their location of interest
 
 ### Let's try plotting something else
 
 #### The counts of co-occuring phyla (or species) with a focal phylum (or species)
 ```{r}
-ggplot(reef_species, aes(x=phylum)) +
+ggplot(reef_phylum, aes(x=phylum)) +
   geom_bar(aes(phylum)) +
   coord_flip()
 ```
@@ -142,10 +157,10 @@ I will allow people to pick their focal phylum and co-occuring phylum
 
 Create a table of percent co-occurence of focal species and neighbor species, given total number times focal species made an appearance
 ```{r}
-
+#DO THIS! 
 ```
 
-### Let's make an interactive map! (phylum)
+### Let's make an interactive map! (mean counts of each phylum at each location)
 ```{r}
 reef_sf <- st_as_sf(reef_summary, coords=geometry, crs=4326) #make data sf geometry friendly
 
@@ -159,9 +174,9 @@ tmap_mode("view") #view = interactive
 reef_map
 ```
 
-### Let's make an interactive map! (species diversity/richness)
+### Let's make an interactive map! (species diversity/richness at each site)
 ```{r}
-reef_sf <- st_as_sf(reef_diversity, coords=geometry, crs=4326) #make data sf geometry friendly
+reef_sf <- st_as_sf(reef_vegan, coords=geometry, crs=4326) #make data sf geometry friendly
 
 reef_map <- tm_basemap("Esri.WorldImagery") +
   tm_shape(reef_sf) + #tells tmap where we're looking (i.e. california)
