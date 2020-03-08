@@ -89,19 +89,25 @@ reef_summary <- reef_tidy %>%
             sd_count = sd(value), #get the s.d. count
             iqr = IQR(value), #get the interquartile range for the count
             sample_size = n())
+
+#Create separate dataframe of just latitude, longitude, and locations
+reef_location_unique <- reef_tidy %>% 
+  group_by(location) %>%
+  summarize() #eliminate everything except location and sticky geometries
 ```
 
 #### Find species diversity/richness for each site
 ```{r, message=FALSE, warning=FALSE}
 #Prep data
-reef_vegan<- reef_tidy %>% #named so because of the vegan package!
+reef_vegan <- reef_tidy %>% #named so because of the vegan package!
   group_by(location,grouped_species) %>% #group by location, then lat/long
   summarize(mean_count = mean(value)) %>%  #get the mean count
-  select(location, grouped_species, mean_count, geometry)
+  select(location, grouped_species, mean_count) %>% 
+  ungroup()
 
 #Calculate species diversity and richness for each site
 reef_vegan_subset <- reef_vegan %>%
-  as.data.frame %>% #remove sticky geometry
+  st_drop_geometry() %>% #remove sticky geometry so it doesn't attach to species name
   pivot_wider(names_from=grouped_species, values_from=mean_count) %>% 
   select(`Abietinaria spp`:`Zonaria farlowii`)
 
@@ -109,9 +115,7 @@ diversity <- diversity(reef_vegan_subset)
 richness <- specnumber(reef_vegan_subset)
 
 #Add this information to the vegan dataframe
-reef_vegan <- reef_vegan %>% 
-  pivot_wider(names_from=grouped_species, values_from=mean_count) %>% #get unique values of location (and ignore the species...)
-  select(location, geometry) %>% 
+reef_vegan <- reef_location_unique %>% 
   add_column(diversity, richness)
 ```
 
@@ -181,7 +185,7 @@ reef_sf <- st_as_sf(reef_vegan, coords=geometry, crs=4326) #make data sf geometr
 reef_map <- tm_basemap("Esri.WorldImagery") +
   tm_shape(reef_sf) + #tells tmap where we're looking (i.e. california)
   #tm_dots(labels="value", col="purple", size=0.5) #tells tmap to plot points on map labelled with id associated
-  tm_symbols(id="location", col = "purple", size = "diversity", scale = 3) #(BASED ON INPUT)
+  tm_symbols(id="location", col = "purple", size = "diversity", scale = 3) #view species diversity or richness (BASED ON INPUT)
 
 tmap_mode("view") #view = interactive
 reef_map
