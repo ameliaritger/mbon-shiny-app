@@ -9,6 +9,7 @@ library(tmap)
 library(vegan)
 library(gt)
 library(leaflet)
+library(DT)
 
 ####################################################################
 ## Read in data
@@ -113,17 +114,34 @@ ui <- navbarPage("Amelia's navigation bar",
                             sidebarPanel("here's some text",
                                          selectInput(inputId="pickaphylum",
                                                      label="pick a phylum!",
-                                                     choices=unique(reef_tidy$phylum)),
+                                                     choices=unique(reef_tidy$phylum)
+                                                     ),
                                          pickerInput(inputId="coocurring",
                                                      label="pick some more phyla!",
                                                      choices=unique(reef_tidy$phylum),
                                                      options = list(`actions-box`=TRUE,
                                                                     `selected-text-format` = "count > 3"),
-                                                     multiple = TRUE)),
+                                                     multiple = TRUE),
+                                         selectInput(inputId="pickanotherphylum",
+                                                     label="pick another phylum!",
+                                                     choices=unique(reef_tidy$phylum)
+                                                     ),
+                                         pickerInput(inputId="morecoocurring",
+                                                     label="pick some more more phyla!",
+                                                     choices=unique(reef_tidy$phylum),
+                                                     options = list(`actions-box`=TRUE,
+                                                                    `selected-text-format` = "count > 3"),
+                                                     multiple = TRUE)
+                                         ),
                             mainPanel("some more text is now here",
                                       p("Region’s top costumes:"),
-                                      plotOutput(outputId="plot1"))
-                            )),
+                                      plotOutput(outputId="plot1"),
+                                      "here's another set of text",
+                                      p("My outputs are here"),
+                                      tableOutput(outputId="table1")
+                                      )
+                            )
+                          ),
                  tabPanel("Second tab!",
                           h1("second tab header"),
                           p("here's some more regular text"),
@@ -131,10 +149,14 @@ ui <- navbarPage("Amelia's navigation bar",
                             sidebarPanel("some text is here",
                                          radioButtons(inputId="locationselect",
                                                             label="pick a location!",
-                                                            choices=unique(reef_tidy$location))),
+                                                            choices=unique(reef_tidy$location)
+                                                      )
+                                         ),
                             mainPanel("some more text is here",
-                                      plotOutput(outputId="plot2"))
-                          ))
+                                      plotOutput(outputId="plot2")
+                                      )
+                            )
+                          )
                  # tabPanel("Third tab!!",
                  #          h1("third tab header"),
                  #          p("here's even more regular text"),
@@ -215,43 +237,43 @@ reef_phylum <- reactive({
 output$plot1 <- renderPlot({
   ggplot(reef_phylum(), aes(x=fct_rev(phylum))) +
     geom_bar() +
-    coord_flip()
+    xlab("hello, world!") +
+    ylab("here is the y axis") +
+    coord_flip() +
+    theme_minimal()
    })
 
 ###########################################################3
 ### Create a table of percent co-occurence of focal genus and neighbor genera (PICK UP TO 3), given total number times focal genus made an appearance
 
 #Find number of times genus makes an appearance
-# reef_present <-  reactive({
-#   reef_tidy %>%
-#   st_drop_geometry() %>% #remove sticky geometry because we don't need it
-#   filter(binary > "0") %>% 
-#   mutate(to_match = ifelse(phylum %in% input$pickaphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genera in the plot at least once
-#   filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
-#   filter(!str_detect(to_match, pattern="FALSE")) %>% #drop rows containing FALSE
-#   distinct(filename, phylum) #remove duplicate plots
-# 
-# present <- nrow(reef_present)
-# })
-# 
-# #Find number of times neighbor genera make an appearance
-# reef_neighbor <-  reactive({
-#   reef_tidy %>%
-#   st_drop_geometry() %>% #remove sticky geometry because we don't need it
-#   filter(binary > "0") %>%
-#   mutate(to_match = ifelse(phylum %in% c(input$coocurring), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genera in the plot at least once
-#   filter(filename %in% to_match) %>% #if focal genera are present, keep all observations of that plot ("filename")
-#   filter(!str_detect(to_match, pattern="FALSE")) %>% 
-#   distinct(filename, phylum)
-# 
-# absent <- nrow(reef_neighbor)
-# })
+reef_present <-  reactive({
+  reef_tidy %>%
+  st_drop_geometry() %>% #remove sticky geometry because we don't need it
+  filter(binary > "0") %>%
+  mutate(to_match = ifelse(phylum %in% input$pickanotherphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genera in the plot at least once
+  filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
+  filter(!str_detect(to_match, pattern="FALSE")) %>% #drop rows containing FALSE
+  distinct(filename, phylum) #remove duplicate plots
+})
+
+#Find number of times neighbor genera make an appearance
+reef_neighbor <-  reactive({
+  reef_tidy %>%
+  st_drop_geometry() %>% #remove sticky geometry because we don't need it
+  filter(binary > "0") %>%
+  mutate(to_match = ifelse(phylum %in% c(input$morecoocurring), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genera in the plot at least once
+  filter(filename %in% to_match) %>% #if focal genera are present, keep all observations of that plot ("filename")
+  filter(!str_detect(to_match, pattern="FALSE")) %>%
+  distinct(filename, phylum)
+})
+
 # 
 # #Find number of times focal genus co-occurs with neighbor genus
 # reef_together <-  reactive({
 #   reef_tidy %>%
 #   st_drop_geometry() %>% #remove sticky geometry because we don't need it
-#   filter(binary > "0") %>% 
+#   filter(binary > "0") %>%
 #   mutate(FOCAL=input$pickaphylum) %>% #pick a focal genus (BASED ON INPUT)
 #   mutate(to_match = ifelse(grouped_genus==FOCAL, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
 #   filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
@@ -262,14 +284,19 @@ output$plot1 <- renderPlot({
 # })
 # 
 # #Create basic table
-# reef_table <- as.data.frame(cbind(present, absent, neighborly))%>% 
+# reef_table <- as.data.frame(cbind(present, absent, neighborly))%>%
 #   mutate(percent_occur = neighborly/present,
 #          percent_absent = neighborly/absent)
-# 
-# output$table1 <- renderDataTable({
-#   reef_table()
-# })
-###########################################################3
+
+reef_table <- reactive({
+  as.data.frame(cbind(nrow(reef_present()), nrow(reef_neighbor())))
+})
+
+output$table1 <- renderTable({
+  reef_table()
+})
+
+###########################################################
 
 
 #   output$mysupercoolmap <- renderLeaflet({
