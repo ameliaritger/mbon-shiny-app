@@ -33,7 +33,6 @@ reef_tidy$longitude <- ifelse(reef_tidy$longitude<0, reef_tidy$longitude, -reef_
 
 #Do some more tidying
 reef_tidy <- reef_tidy %>%
-  st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>% #Make sticky geometries for lat/long
   mutate(species = str_replace(species, pattern="tube worm", "tubeworm")) %>%  #replace "tube worm" with "tubeworm" for later grouping
   separate(species, into="genus", sep="_", remove=FALSE) %>% #Add column for genus name
   mutate(species=str_replace_all(species, "_", " "),
@@ -47,39 +46,9 @@ reef_tidy <- reef_tidy %>%
   mutate(grouped_genus = str_to_title(grouped_genus)) #capitalize first word of genus
 
 ####################################################################
-## Subset for a phylum
-reef_phylum <- reef_tidy %>%
-  filter(binary > "0") %>% #filter out species not present
-  mutate(focal_phylum="annelida") %>% #pick a focal phylum (BASED ON INPUT)
-  mutate(to_match = ifelse(phylum==focal_phylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
-  filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
-  #filter(!phylum=="annelida") %>% #remove the focal phylum, because we don't need to see co-occurrence of focal phylum with focal phylum (BASED ON INPUT)
-  filter(phylum=="annelida") %>% #select only the coocurring phyla you want to look at (BASED ON INPUT)
-  distinct(filename, .keep_all=TRUE) #remove duplicate values within the same plot
-
-## Subset for a location
-reef_location <- reef_tidy %>%
-  filter(binary > "0") %>% #filter out species not present
-  mutate(focal_location="Rodes") %>% #pick a focal location (BASED ON INPUT)
-  mutate(to_match = ifelse(location==focal_location, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
-  filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
-  filter(phylum=="annelida") %>%  #select only the coocurring phyla you want to look at (BASED ON INPUT)
-  distinct(filename, .keep_all=TRUE) #remove duplicate values within the same plot
-
-#Find average abundance values for each location
-reef_summary <- reef_tidy %>%
-  filter(binary > "0") %>% #filter out species not present
-  group_by(location,phylum) %>% #group by location, then lat/long
-  summarize(mean_count = mean(value), #get the mean count
-            median_count = median(value),
-            sd_count = sd(value), #get the s.d. count
-            iqr = IQR(value), #get the interquartile range for the count
-            sample_size = n())
-
 #Create separate dataframe of just latitude, longitude, and locations (use for later plotting species diversity/richness at each location)
-reef_location_unique <- reef_tidy %>% 
-  group_by(location) %>%
-  summarize() #eliminate everything except location and sticky geometries
+reef_location <- reef_tidy %>% 
+  distinct(location, latitude, longitude)
 
 ## Find species diversity/richness for each site
 #Prep data
@@ -91,15 +60,14 @@ reef_vegan <- reef_tidy %>% #named so because of the vegan package!
 
 #Calculate species diversity and richness for each site
 reef_vegan_subset <- reef_vegan %>%
-  st_drop_geometry() %>% #remove sticky geometry so it doesn't attach to species name
   pivot_wider(names_from=grouped_species, values_from=mean_count) %>% 
   select(`Abietinaria spp`:`Zonaria farlowii`)
 
 diversity <- diversity(reef_vegan_subset)
 richness <- specnumber(reef_vegan_subset)
 
-#Add this information to the vegan dataframe
-reef_vegan <- reef_location_unique %>% 
+#Combine all of this information - location, lat/long, diversity/richness
+reef_vegan <- reef_location %>% 
   add_column(diversity, richness)
 
 ####################################################################
@@ -168,8 +136,28 @@ ui <- navbarPage("Amelia's navigation bar",
                                       leafletOutput("mysupercoolmap")
                                       )
                             )
+                          ),
+                 tabPanel("Fourth tab!!",
+                          h1("fourth tab header"),
+                          p("strawberries are a summer fruit"),
+                          sidebarLayout(
+                            sidebarPanel("text be here",
+                                         radioButtons(inputId = "pickacolor", 
+                                                      label = "pick a color!",
+                                                      choices = c("RED!!"="red", "PURPLE!!"="purple", "ORAAAANGE!!!"="orange", "YELLOW!!"="yellow", "GREEEEEN!!"="green")
+                                         ),
+                                         radioButtons(inputId="mapindex",
+                                                      label="pick an output!",
+                                                      choices=c("diversity", "richness")
+                                         )
+                            ),
+                            mainPanel("some more text is here",
+                                      leafletOutput("map2")
+                            )
                           )
                  )
+)
+                 
 
 ####################################################################
 # Create server
@@ -217,14 +205,12 @@ output$plot1 <- renderPlot({
     ylab(paste("Abundance with",input$pickaphylum)) +
     coord_flip() +
     theme_minimal()
-    
    })
 
 ### TAB 1 - table 
 #Find number of times focal phylum makes an appearance
 reef_focal <- reactive({
   reef_tidy %>%
-  st_drop_geometry() %>% #remove sticky geometry because we don't need it
   filter(binary > "0") %>%
   mutate(to_match = ifelse(phylum %in% input$pickaphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
   filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
@@ -234,7 +220,6 @@ reef_focal <- reactive({
 #Find number of times neighbor genera make an appearance
 reef_neighbor <- reactive({
   reef_tidy %>%
-  st_drop_geometry() %>% #remove sticky geometry because we don't need it
   filter(binary > "0") %>%
   mutate(to_match = ifelse(phylum %in% c(input$coocurring), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phyla in the plot at least once
   filter(filename %in% to_match) %>% #if focal phyla are present, keep all observations of that plot ("filename")
@@ -244,7 +229,6 @@ reef_neighbor <- reactive({
 #Find number of times focal genus co-occurs with neighbor genus
 reef_together <- reactive({
   reef_tidy %>%
-    st_drop_geometry() %>% #remove sticky geometry because we don't need it
     filter(binary > "0") %>%
     mutate(to_match = ifelse(phylum %in% input$pickaphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
     filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
@@ -293,9 +277,10 @@ output$plot2 <- renderPlot({
     theme_minimal()
 })
 
-###########################################################
-
-reef_summary <- reactive({
+######
+### TAB 3
+#double check this....
+reef_summary2 <- reactive({
   reef_tidy %>%
     filter(binary > "0") %>% #filter out species not present
     st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>%  #create sticky geometry for lat/long
@@ -308,13 +293,27 @@ reef_summary <- reactive({
 
 output$mysupercoolmap <- renderLeaflet({
   reef_map <- tm_basemap("Esri.WorldImagery") +
-    tm_shape(reef_summary()) +
+    tm_shape(reef_summary2()) +
     tm_symbols(id="location", col = input$pickacolor, size = input$pickavalue, scale=2) +
     tm_facets(by = "phylum")
   
   tmap_leaflet(reef_map)
 })
 
+######
+### TAB 4
+reef_index_df <- reactive({
+  reef_vegan %>%
+    st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
+})
+
+output$map2 <- renderLeaflet({
+  reef_map2 <- tm_basemap("Esri.WorldImagery") +
+    tm_shape(reef_index_df()) +
+    tm_symbols(id="location", col = input$pickacolor, size = input$mapindex, scale=2)
+  
+  tmap_leaflet(reef_map2)
+})
 }
 
 
