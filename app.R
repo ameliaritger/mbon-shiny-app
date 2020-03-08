@@ -164,6 +164,7 @@ ui <- navbarPage("Amelia's navigation bar",
                  #                      leafletOutput("mysupercoolmap"))
                           )
 
+####################################################################
 # Create server
 server <- function(input, output){
   
@@ -181,28 +182,6 @@ server <- function(input, output){
   #     coord_flip()
   # })
   # 
-   
-  reef_summary <- reactive({
-    reef_tidy %>%
-      filter(binary > "0") %>% #filter out species not present
-      group_by(location,phylum) %>% #group by location, then lat/long
-      summarize(mean_count = mean(value), #get the mean count
-                median_count = median(value),
-                sd_count = sd(value), #get the s.d. count
-                iqr = IQR(value), #get the interquartile range for the count
-                sample_size = n()) %>% 
-      filter(location==input$locationselect)
-  })
-  
-   output$plot2 <- renderPlot({
-     ggplot(data=reef_summary(), aes(x=phylum, y=sample_size)) +
-       geom_col() +
-       coord_flip() +
-       ylab("Number of plots containing each phylum") +
-       xlab("Phylum") +
-       theme_minimal()
-   })
-  
   # reef_summary <- reactive({
   #   reef_tidy %>%
   #     group_by(location,phylum) %>% #group by location, then lat/long
@@ -211,7 +190,8 @@ server <- function(input, output){
   #               sample_size = n()) %>%  #get the sample size
   #     filter(phylum==c(input$mapit))
   # })
-  
+
+### TAB 1 - plot 
 ## Subset for a phylum
 reef_phylum <- reactive({
   reef_tidy %>%
@@ -233,9 +213,7 @@ output$plot1 <- renderPlot({
     
    })
 
-###########################################################3
-### Create a table of percent co-occurence of focal genus and neighbor genera (PICK UP TO 3), given total number times focal genus made an appearance
-
+### TAB 1 - table 
 #Find number of times focal phylum makes an appearance
 reef_focal <- reactive({
   reef_tidy %>%
@@ -268,11 +246,6 @@ reef_together <- reactive({
     distinct(filename)
 })
 
-# #Create basic table
-# reef_table <- as.data.frame(cbind(present, absent, neighborly))%>%
-#   mutate(percent_occur = neighborly/present,
-#          percent_absent = neighborly/absent)
-
 reef_table <- reactive({
   as.data.frame(cbind(nrow(reef_focal()), nrow(reef_neighbor()), nrow(reef_together()))) %>% 
     mutate(percent_focal = V3/V1,
@@ -280,15 +253,37 @@ reef_table <- reactive({
     gt() %>% 
     fmt_percent(columns=vars(percent_focal, percent_neighbor), decimal=1) %>% 
     tab_options(table.width = pct(80)) %>% #make the table width 80% of the page width
-    cols_label(V1="Focal phylum present",
-               V2 = "Neighbor phyla present",
-               V3="Phyla present together",
-               percent_focal="Percent focal co-occurrs with neighbors",
-               percent_neighbor="Percent neighbors co-occurs with focal")
+    cols_label(V1=paste(input$pickaphylum, "present"),
+               V2="Neighboring phyla present",
+               V3=paste(input$pickaphylum,"and neighboring phyla present together"),
+               percent_focal=paste("Percent", input$pickaphylum, "co-occurrs with neighboring phyla"),
+               percent_neighbor=paste("Percent neighboring phyla co-occur with", input$pickaphylum))
 })
 
 output$table1 <- render_gt({
   expr = reef_table()
+})
+
+### TAB 2
+reef_summary <- reactive({
+  reef_tidy %>%
+    filter(binary > "0") %>% #filter out species not present
+    group_by(location,phylum) %>% #group by location, then lat/long
+    summarize(mean_count = mean(value), #get the mean count
+              median_count = median(value),
+              sd_count = sd(value), #get the s.d. count
+              iqr = IQR(value), #get the interquartile range for the count
+              sample_size = n()) %>% 
+    filter(location==input$locationselect)
+})
+
+output$plot2 <- renderPlot({
+  ggplot(data=reef_summary(), aes(x=phylum, y=sample_size)) +
+    geom_col() +
+    coord_flip() +
+    ylab("Number of plots containing each phylum") +
+    xlab("Phylum") +
+    theme_minimal()
 })
 
 ###########################################################
