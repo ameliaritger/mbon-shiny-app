@@ -9,7 +9,6 @@ library(tmap)
 library(vegan)
 library(gt)
 library(leaflet)
-library(DT)
 
 ####################################################################
 ## Read in data
@@ -268,28 +267,24 @@ reef_neighbor <-  reactive({
   distinct(filename, phylum)
 })
 
-# 
-# #Find number of times focal genus co-occurs with neighbor genus
-# reef_together <-  reactive({
-#   reef_tidy %>%
-#   st_drop_geometry() %>% #remove sticky geometry because we don't need it
-#   filter(binary > "0") %>%
-#   mutate(FOCAL=input$pickaphylum) %>% #pick a focal genus (BASED ON INPUT)
-#   mutate(to_match = ifelse(grouped_genus==FOCAL, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
-#   filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
-#   filter(phylum %in% c(input$coocurring)) %>% #select only the coocurring genera you want to look at (BASED ON INPUT)
-#   distinct(filename, phylum)
-# 
-# neighborly <- nrow(reef_together)
-# })
-# 
+#Find number of times focal genus co-occurs with neighbor genus
+reef_together <-  reactive({
+  reef_tidy %>%
+  st_drop_geometry() %>% #remove sticky geometry because we don't need it
+  filter(binary > "0") %>%
+  mutate(to_match = ifelse(phylum %in% input$pickanotherphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
+  filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
+  filter(phylum %in% c(input$morecoocurring)) %>% #select only the coocurring genera you want to look at (BASED ON INPUT)
+  distinct(filename, phylum)
+})
+
 # #Create basic table
 # reef_table <- as.data.frame(cbind(present, absent, neighborly))%>%
 #   mutate(percent_occur = neighborly/present,
 #          percent_absent = neighborly/absent)
 
 reef_table <- reactive({
-  as.data.frame(cbind(nrow(reef_present()), nrow(reef_neighbor())))
+  as.data.frame(cbind(nrow(reef_present()), nrow(reef_neighbor()), nrow(reef_together())))
 })
 
 output$table1 <- renderTable({
