@@ -90,7 +90,7 @@ reef_summary <- reef_tidy %>%
             iqr = IQR(value), #get the interquartile range for the count
             sample_size = n())
 
-#Create separate dataframe of just latitude, longitude, and locations
+#Create separate dataframe of just latitude, longitude, and locations (use for later plotting species diversity/richness at each location)
 reef_location_unique <- reef_tidy %>% 
   group_by(location) %>%
   summarize() #eliminate everything except location and sticky geometries
