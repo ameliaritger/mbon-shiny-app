@@ -137,7 +137,7 @@ ui <- navbarPage("Amelia's navigation bar",
                                       plotOutput(outputId="plot1"),
                                       "here's another set of text",
                                       p("My outputs are here"),
-                                      tableOutput(outputId="table1")
+                                      gt_output(outputId="table1")
                                       )
                             )
                           ),
@@ -245,37 +245,36 @@ output$plot1 <- renderPlot({
 ###########################################################3
 ### Create a table of percent co-occurence of focal genus and neighbor genera (PICK UP TO 3), given total number times focal genus made an appearance
 
-#Find number of times genus makes an appearance
-reef_present <-  reactive({
+#Find number of times focal phylum makes an appearance
+reef_focal <- reactive({
   reef_tidy %>%
   st_drop_geometry() %>% #remove sticky geometry because we don't need it
   filter(binary > "0") %>%
-  mutate(to_match = ifelse(phylum %in% input$pickanotherphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genera in the plot at least once
-  filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
-  filter(!str_detect(to_match, pattern="FALSE")) %>% #drop rows containing FALSE
-  distinct(filename, phylum) #remove duplicate plots
+  mutate(to_match = ifelse(phylum %in% input$pickanotherphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
+  filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
+  distinct(filename) #get unique plot numbers that contain the focal phylum
 })
 
 #Find number of times neighbor genera make an appearance
-reef_neighbor <-  reactive({
+reef_neighbor <- reactive({
   reef_tidy %>%
   st_drop_geometry() %>% #remove sticky geometry because we don't need it
   filter(binary > "0") %>%
-  mutate(to_match = ifelse(phylum %in% c(input$morecoocurring), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genera in the plot at least once
-  filter(filename %in% to_match) %>% #if focal genera are present, keep all observations of that plot ("filename")
-  filter(!str_detect(to_match, pattern="FALSE")) %>%
-  distinct(filename, phylum)
+  mutate(to_match = ifelse(phylum %in% c(input$morecoocurring), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phyla in the plot at least once
+  filter(filename %in% to_match) %>% #if focal phyla are present, keep all observations of that plot ("filename")
+  distinct(filename)
 })
 
 #Find number of times focal genus co-occurs with neighbor genus
-reef_together <-  reactive({
+reef_together <- reactive({
   reef_tidy %>%
-  st_drop_geometry() %>% #remove sticky geometry because we don't need it
-  filter(binary > "0") %>%
-  mutate(to_match = ifelse(phylum %in% input$pickanotherphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
-  filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
-  filter(phylum %in% c(input$morecoocurring)) %>% #select only the coocurring genera you want to look at (BASED ON INPUT)
-  distinct(filename, phylum)
+    st_drop_geometry() %>% #remove sticky geometry because we don't need it
+    filter(binary > "0") %>%
+    mutate(to_match = ifelse(phylum %in% input$pickanotherphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
+    filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
+    mutate(to_match = ifelse(phylum %in% input$morecoocurring, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
+    filter(filename %in% to_match) %>% 
+    distinct(filename)
 })
 
 # #Create basic table
@@ -284,11 +283,21 @@ reef_together <-  reactive({
 #          percent_absent = neighborly/absent)
 
 reef_table <- reactive({
-  as.data.frame(cbind(nrow(reef_present()), nrow(reef_neighbor()), nrow(reef_together())))
+  as.data.frame(cbind(nrow(reef_focal()), nrow(reef_neighbor()), nrow(reef_together()))) %>% 
+    mutate(percent_focal = V3/V1,
+           percent_neighbor = V3/V2) %>%
+    gt() %>% 
+    fmt_percent(columns=vars(percent_focal, percent_neighbor), decimal=1) %>% 
+    tab_options(table.width = pct(80)) %>% #make the table width 80% of the page width
+    cols_label(V1="Focal phylum present",
+               V2 = "Neighbor phyla present",
+               V3="Phyla present together",
+               percent_focal="Percent focal co-occurrs with neighbors",
+               percent_neighbor="Percent neighbors co-occurs with focal")
 })
 
-output$table1 <- renderTable({
-  reef_table()
+output$table1 <- render_gt({
+  expr = reef_table()
 })
 
 ###########################################################
