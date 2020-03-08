@@ -60,7 +60,7 @@ genusnames <- unique(reef_tidy$genus)
 
 ## Create different datasets for different uses
 
-#### Subset for a phylum
+#### Subset for a phylum MAYBE ADD DISTINCT()??
 ```{r, message=FALSE, warning=FALSE}
 reef_phylum <- reef_tidy %>%
   filter(binary > "0") %>% #filter out species not present
@@ -71,7 +71,7 @@ reef_phylum <- reef_tidy %>%
   filter(phylum=="annelida") #select only the coocurring phyla you want to look at (BASED ON INPUT)
 ```
 
-#### Subset for a location
+#### Subset for a location MAYBE ADD DISTINCT()??
 ```{r, message=FALSE, warning=FALSE}
 reef_location <- reef_tidy %>%
   filter(binary > "0") %>% #filter out species not present
@@ -160,41 +160,60 @@ ggplot(reef_phylum, aes(x=phylum)) +
 ```
 I will allow people to pick their focal phylum and co-occuring phylum
 
-### Create a table of percent co-occurence of focal species and neighbor species, given total number times focal species made an appearance
+### Create a table of percent co-occurence of focal genus and neighbor genera (PICK UP TO 3), given total number times focal genus made an appearance
 ```{r}
-#Find number of times species makes an appearance
+#Find number of times genus makes an appearance
 reef_present <- reef_tidy %>%
-    st_drop_geometry() %>% #remove sticky geometry because we don't need it
+  st_drop_geometry() %>% #remove sticky geometry because we don't need it
   filter(binary > "0") %>% 
   mutate(FOCAL="Corynactis") %>% #pick a focal genus (BASED ON INPUT)
-  mutate(to_match = ifelse(grouped_genus==FOCAL, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
+  mutate(to_match = ifelse(grouped_genus==FOCAL, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
   filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
-  filter(!str_detect(to_match, pattern="FALSE")) 
+  filter(!str_detect(to_match, pattern="FALSE")) %>% #drop rows containing FALSE
+  distinct(filename) #remove duplicate plots
 
 present <- nrow(reef_present)
 
-#Find number of times species co-occurs with neighbor species
+#Find number of times neighbor genera make an appearance
+reef_neighbor_present <- reef_tidy %>%
+  st_drop_geometry() %>% #remove sticky geometry because we don't need it
+  filter(binary > "0") %>% 
+  mutate(FOCAL1="Strongylocentrotus") %>% #pick a focal genus (BASED ON INPUT)
+  mutate(FOCAL2="Balanophyllia") %>% #pick a focal genus (BASED ON INPUT)
+  mutate(FOCAL3="Balanus") %>% #pick a focal genus (BASED ON INPUT)
+  mutate(to_match = ifelse(grouped_genus==FOCAL1|grouped_genus==FOCAL2|grouped_genus==FOCAL3, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genera in the plot at least once
+  filter(filename %in% to_match) %>% #if focal genera are present, keep all observations of that plot ("filename")
+  filter(!str_detect(to_match, pattern="FALSE")) %>% 
+  distinct(filename)
+
+absent <- nrow(reef_neighbor_present)
+
+#Find number of times focal genus co-occurs with neighbor genus
 reef_neighbor <- reef_tidy %>%
   st_drop_geometry() %>% #remove sticky geometry because we don't need it
   filter(binary > "0") %>% 
   mutate(FOCAL="Corynactis") %>% #pick a focal genus (BASED ON INPUT)
-  mutate(to_match = ifelse(grouped_genus==FOCAL, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
+  mutate(to_match = ifelse(grouped_genus==FOCAL, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
   filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
-  filter(grouped_genus=="Strongylocentrotus" | grouped_genus=="Balanophyllia") #select only the coocurring genus you want to look at (BASED ON INPUT)
+  filter(grouped_genus=="Strongylocentrotus" | grouped_genus=="Balanophyllia" | grouped_genus=="Balanus") %>% #select only the coocurring genera you want to look at (BASED ON INPUT)
+  distinct(filename)
 
 neighborly <- nrow(reef_neighbor)
 
 #Create basic table
-reef_table <- as.data.frame(cbind(present, neighborly)) %>% 
-  mutate(percent = neighborly/present)
+reef_table <- as.data.frame(cbind(present, absent, neighborly))%>% 
+  mutate(percent_occur = neighborly/present,
+         percent_absent = neighborly/absent)
 
 #Generate nice table using `gt`
 reef_table %>% 
   gt() %>% 
-  fmt_percent(columns=vars(percent), decimal=2) %>% 
-  cols_label(present="Focal species present",
-             neighborly="Species present together",
-             percent="Percent co-occurrence")
+  fmt_percent(columns=vars(percent_occur, percent_absent), decimal=2) %>% 
+  cols_label(present="Focal genus present",
+             absent = "Neighbor genera present",
+             neighborly="Genera present together",
+             percent_occur="Percent co-occurrence",
+             percent_absent = "Percent times neighbor genera occur without focal genus")
 ```
 
 ### Let's make an interactive map! (mean counts of each phylum at each location)
