@@ -60,18 +60,21 @@ genusnames <- unique(reef_tidy$genus)
 
 ## Create different datasets for different uses
 
-#### Subset for a phylum MAYBE ADD DISTINCT()??
+#### Subset for a phylum
 ```{r, message=FALSE, warning=FALSE}
+
 reef_phylum <- reef_tidy %>%
   filter(binary > "0") %>% #filter out species not present
-  mutate(focal_phylum="annelida") %>% #pick a focal phylum (BASED ON INPUT)
+  mutate(focal_phylum="cnidaria") %>% #pick a focal phylum (BASED ON INPUT)
   mutate(to_match = ifelse(phylum==focal_phylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
   filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
   #filter(!phylum=="annelida") %>% #remove the focal phylum, because we don't need to see co-occurrence of focal phylum with focal phylum (BASED ON INPUT)
-  filter(phylum=="annelida") #select only the coocurring phyla you want to look at (BASED ON INPUT)
+  filter(location=="Rodes") %>% 
+  filter(phylum %in% c("arthropoda", "chordata", "echinodermata")) %>% 
+  distinct(filename, phylum, .keep_all=TRUE) #remove duplicate values within the same plot
 ```
 
-#### Subset for a location MAYBE ADD DISTINCT()??
+#### Subset for a location
 ```{r, message=FALSE, warning=FALSE}
 reef_location <- reef_tidy %>%
   filter(binary > "0") %>% #filter out species not present
@@ -79,7 +82,8 @@ reef_location <- reef_tidy %>%
   mutate(to_match = ifelse(location==focal_location, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
   filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
   #filter(!phylum=="annelida") %>% #remove the focal phylum, because we don't need to see co-occurrence of focal phylum with focal phylum (BASED ON INPUT)
-  filter(phylum=="annelida") #select only the coocurring phyla you want to look at (BASED ON INPUT)
+  filter(phylum=="annelida") %>%  #select only the coocurring phyla you want to look at (BASED ON INPUT)
+  distinct(filename, .keep_all=TRUE) #remove duplicate values within the same plot
 
 #Find average abundance values for each location
 reef_summary <- reef_tidy %>%
@@ -154,8 +158,8 @@ I will allow people to pick their phylum (or species) of interest and pick their
 
 #### The counts of co-occuring phyla (or species) with a focal phylum (or species)
 ```{r}
-ggplot(reef_phylum, aes(x=phylum)) +
-  geom_bar(aes(phylum)) +
+ggplot(reef_phylum, aes(x=fct_rev(phylum))) +
+  geom_bar() +
   coord_flip()
 ```
 I will allow people to pick their focal phylum and co-occuring phylum
