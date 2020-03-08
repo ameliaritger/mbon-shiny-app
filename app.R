@@ -120,16 +120,6 @@ ui <- navbarPage("Amelia's navigation bar",
                                                      choices=unique(reef_tidy$phylum),
                                                      options = list(`actions-box`=TRUE,
                                                                     `selected-text-format` = "count > 3"),
-                                                     multiple = TRUE),
-                                         selectInput(inputId="pickanotherphylum",
-                                                     label="pick another phylum!",
-                                                     choices=unique(reef_tidy$phylum)
-                                                     ),
-                                         pickerInput(inputId="morecoocurring",
-                                                     label="pick some more more phyla!",
-                                                     choices=unique(reef_tidy$phylum),
-                                                     options = list(`actions-box`=TRUE,
-                                                                    `selected-text-format` = "count > 3"),
                                                      multiple = TRUE)
                                          ),
                             mainPanel("some more text is now here",
@@ -237,9 +227,10 @@ output$plot1 <- renderPlot({
   ggplot(reef_phylum(), aes(x=fct_rev(phylum))) +
     geom_bar() +
     xlab("hello, world!") +
-    ylab("here is the y axis") +
+    ylab(paste("Abundance with",input$pickaphylum)) +
     coord_flip() +
     theme_minimal()
+    
    })
 
 ###########################################################3
@@ -250,7 +241,7 @@ reef_focal <- reactive({
   reef_tidy %>%
   st_drop_geometry() %>% #remove sticky geometry because we don't need it
   filter(binary > "0") %>%
-  mutate(to_match = ifelse(phylum %in% input$pickanotherphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
+  mutate(to_match = ifelse(phylum %in% input$pickaphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
   filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
   distinct(filename) #get unique plot numbers that contain the focal phylum
 })
@@ -260,7 +251,7 @@ reef_neighbor <- reactive({
   reef_tidy %>%
   st_drop_geometry() %>% #remove sticky geometry because we don't need it
   filter(binary > "0") %>%
-  mutate(to_match = ifelse(phylum %in% c(input$morecoocurring), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phyla in the plot at least once
+  mutate(to_match = ifelse(phylum %in% c(input$coocurring), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phyla in the plot at least once
   filter(filename %in% to_match) %>% #if focal phyla are present, keep all observations of that plot ("filename")
   distinct(filename)
 })
@@ -270,9 +261,9 @@ reef_together <- reactive({
   reef_tidy %>%
     st_drop_geometry() %>% #remove sticky geometry because we don't need it
     filter(binary > "0") %>%
-    mutate(to_match = ifelse(phylum %in% input$pickanotherphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
+    mutate(to_match = ifelse(phylum %in% input$pickaphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
     filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
-    mutate(to_match = ifelse(phylum %in% input$morecoocurring, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
+    mutate(to_match = ifelse(phylum %in% input$coocurring, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
     filter(filename %in% to_match) %>% 
     distinct(filename)
 })
