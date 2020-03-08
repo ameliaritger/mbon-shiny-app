@@ -165,37 +165,37 @@ I will allow people to pick their focal phylum and co-occuring phylum
 
 ### Create a table of percent co-occurence of focal genus and neighbor genera (PICK UP TO 3), given total number times focal genus made an appearance
 ```{r}
-#Find number of times genus makes an appearance
-reef_present <- reef_tidy %>%
+#Find number of times focal phylum makes an appearance
+reef_focal <- reef_tidy %>%
   st_drop_geometry() %>% #remove sticky geometry because we don't need it
   filter(binary > "0") %>% 
-  mutate(to_match = ifelse(phylum %in% c("cnidaria"), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genera in the plot at least once
-  filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
+  mutate(to_match = ifelse(phylum %in% c("cnidaria"), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
+  filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
   filter(!str_detect(to_match, pattern="FALSE")) %>% #drop rows containing FALSE
-  distinct(filename, phylum) #remove duplicate plots
+  distinct(filename) #get unique plots containing focal phylum
 
-present <- nrow(reef_present)
+present <- nrow(reef_focal)
 
-#Find number of times neighbor genera make an appearance
+#Find number of times neighbor phyla make an appearance
 reef_neighbor <- reef_tidy %>%
-  st_drop_geometry() %>% #remove sticky geometry because we don't need it
+  st_drop_geometry() %>%
   filter(binary > "0") %>%
-  mutate(to_match = ifelse(phylum %in% c("arthropoda", "chordata", "echinodermata"), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genera in the plot at least once
-  filter(filename %in% to_match) %>% #if focal genera are present, keep all observations of that plot ("filename")
+  mutate(to_match = ifelse(phylum %in% c("arthropoda", "chordata", "echinodermata"), filename, "FALSE")) %>%
+  filter(filename %in% to_match) %>%
   filter(!str_detect(to_match, pattern="FALSE")) %>% 
-  distinct(filename, phylum)
+  distinct(filename)
 
 absent <- nrow(reef_neighbor)
 
-#Find number of times focal genus co-occurs with neighbor genus
+#Find number of times focal phylum co-occurs with neighbor genus
 reef_together <- reef_tidy %>%
-  st_drop_geometry() %>% #remove sticky geometry because we don't need it
+  st_drop_geometry() %>%
   filter(binary > "0") %>% 
-  mutate(FOCAL="Corynactis") %>% #pick a focal genus (BASED ON INPUT)
-  mutate(to_match = ifelse(grouped_genus==FOCAL, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
-  filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
-  filter(phylum %in% c("arthropoda", "chordata", "echinodermata")) %>% #select only the coocurring genera you want to look at (BASED ON INPUT)
-  distinct(filename, phylum)
+  mutate(to_match = ifelse(phylum %in% "cnidaria", filename, "FALSE")) %>%
+  filter(filename %in% to_match) %>% 
+  mutate(to_match = ifelse(phylum %in% c("arthropoda", "chordata", "echinodermata"), filename, "FALSE")) %>% #do the same thing again for the neighbor phyla
+  filter(filename %in% to_match) %>% 
+  distinct(filename)
 
 neighborly <- nrow(reef_together)
 
@@ -216,6 +216,35 @@ reef_table %>%
              percent_absent = "Percent times neighbors occur without focal")
 ```
 
+Some alternative methods to creating a table
+```{r}
+df1 <- tribble(
+  ~'neighbor', ~'focal', ~'together',  
+  nrow(reef_neighbor), nrow(reef_focal), nrow(reef_together)         
+) %>%
+  mutate(percent_focal = together/focal,
+         percent_neighbor = together/neighbor) %>%
+  gt() %>% 
+  fmt_percent(columns=vars(percent_focal, percent_neighbor), decimal=1) %>% 
+  tab_options(table.width = pct(80)) %>% #make the table width 80% of the page width
+  cols_label(focal="Focal phylum present",
+             neighbor = "Neighbor phyla present",
+             together="Phyla present together",
+             percent_focal="Percent focal co-occurrs with neighbors",
+             percent_neighbor="Percent neighbors co-occurs with focal")
+
+df2 <- as.data.frame(cbind(nrow(reef_focal), nrow(reef_neighbor), nrow(reef_together))) %>% 
+  mutate(percent_focal = V3/V1,
+         percent_neighbor = V3/V2) %>%
+  gt() %>% 
+  fmt_percent(columns=vars(percent_focal, percent_neighbor), decimal=1) %>% 
+  tab_options(table.width = pct(80)) %>% #make the table width 80% of the page width
+  cols_label(V1="Focal phylum present",
+             V2 = "Neighbor phyla present",
+             V3="Phyla present together",
+             percent_focal="Percent focal co-occurrs with neighbors",
+             percent_neighbor="Percent neighbors co-occurs with focal")
+```
 
 ```{r}
 reef_summary <- reef_tidy %>%
