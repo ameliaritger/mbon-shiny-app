@@ -175,7 +175,7 @@ reef_present <- reef_tidy %>%
 present <- nrow(reef_present)
 
 #Find number of times neighbor genera make an appearance
-reef_neighbor_present <- reef_tidy %>%
+reef_neighbor <- reef_tidy %>%
   st_drop_geometry() %>% #remove sticky geometry because we don't need it
   filter(binary > "0") %>% 
   mutate(FOCAL1="Strongylocentrotus") %>% #pick a focal genus (BASED ON INPUT)
@@ -186,10 +186,10 @@ reef_neighbor_present <- reef_tidy %>%
   filter(!str_detect(to_match, pattern="FALSE")) %>% 
   distinct(filename)
 
-absent <- nrow(reef_neighbor_present)
+absent <- nrow(reef_neighbor)
 
 #Find number of times focal genus co-occurs with neighbor genus
-reef_neighbor <- reef_tidy %>%
+reef_together <- reef_tidy %>%
   st_drop_geometry() %>% #remove sticky geometry because we don't need it
   filter(binary > "0") %>% 
   mutate(FOCAL="Corynactis") %>% #pick a focal genus (BASED ON INPUT)
@@ -198,7 +198,7 @@ reef_neighbor <- reef_tidy %>%
   filter(grouped_genus=="Strongylocentrotus" | grouped_genus=="Balanophyllia" | grouped_genus=="Balanus") %>% #select only the coocurring genera you want to look at (BASED ON INPUT)
   distinct(filename)
 
-neighborly <- nrow(reef_neighbor)
+neighborly <- nrow(reef_together)
 
 #Create basic table
 reef_table <- as.data.frame(cbind(present, absent, neighborly))%>% 
@@ -208,12 +208,13 @@ reef_table <- as.data.frame(cbind(present, absent, neighborly))%>%
 #Generate nice table using `gt`
 reef_table %>% 
   gt() %>% 
-  fmt_percent(columns=vars(percent_occur, percent_absent), decimal=2) %>% 
+  fmt_percent(columns=vars(percent_occur, percent_absent), decimal=2) %>% #convert to %
+  tab_options(table.width = pct(80)) %>% #make the table width 80% of the page width
   cols_label(present="Focal genus present",
              absent = "Neighbor genera present",
              neighborly="Genera present together",
              percent_occur="Percent co-occurrence",
-             percent_absent = "Percent times neighbor genera occur without focal genus")
+             percent_absent = "Percent times neighbors occur without focal")
 ```
 
 ### Let's make an interactive map! (mean counts of each phylum at each location)
