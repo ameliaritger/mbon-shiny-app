@@ -5416,7 +5416,7 @@ reef_tidy &lt;- reef %&gt;%
   clean_names() %&gt;% #standardize names
   #rename(latitude=lat_start, longitude=long_start) %&gt;% #rename latitude and longitude
   group_by(location) %&gt;% #group by location to get average lat/long values for each location
-  mutate(latitude=mean(lat_start), longitude=mean(long_start)) %&gt;% #get average lat/long values (because that&#39;s how that works...)
+  mutate(latitude=head(lat_end,1), longitude=head(long_end,1)) %&gt;% #get average lat/long values (because that&#39;s how that works...)
   ungroup() %&gt;% #really important, we don&#39;t want to confuse R!
   pivot_longer(&quot;annelida_cirriformia_luxuriosa&quot;:&quot;substrate_amphipod_tube_complex&quot;) %&gt;%  #make long form
   separate(name, into=&quot;phylum&quot;, sep=&quot;_&quot;, remove=FALSE) %&gt;% #Add column for phylum name
@@ -5427,11 +5427,10 @@ reef_tidy &lt;- reef %&gt;%
 #Because it&#39;s faster to do it outside tidyverse
 reef_tidy$binary &lt;- ifelse(reef_tidy$value&gt;0, 1, 0) #Add presence/absence column
 reef_tidy$species &lt;- gsub(&quot;^[^_]*_&quot;,&quot;&quot;,reef_tidy$name, perl=TRUE) #Add column for species name
-reef_tidy$longitude &lt;- ifelse(reef_tidy$longitude&lt;0, reef_tidy$longitude, -reef_tidy$longitude) #because all longitude values in this region should be negative 
+#reef_tidy$longitude &lt;- ifelse(reef_tidy$longitude&lt;0, reef_tidy$longitude, -reef_tidy$longitude) #because all longitude values in this region should be negative 
 
 #Do some more tidying
 reef_tidy &lt;- reef_tidy %&gt;%
-  st_as_sf(coords=c(&quot;longitude&quot;, &quot;latitude&quot;), crs=4326) %&gt;% #Make sticky geometries for lat/long
   mutate(species = str_replace(species, pattern=&quot;tube worm&quot;, &quot;tubeworm&quot;)) %&gt;%  #replace &quot;tube worm&quot; with &quot;tubeworm&quot; for later grouping
   separate(species, into=&quot;genus&quot;, sep=&quot;_&quot;, remove=FALSE) %&gt;% #Add column for genus name
   mutate(species=str_replace_all(species, &quot;_&quot;, &quot; &quot;),
@@ -5485,8 +5484,8 @@ reef_summary &lt;- reef_tidy %&gt;%
 
 #Create separate dataframe of just latitude, longitude, and locations (use for later plotting species diversity/richness at each location)
 reef_location_unique &lt;- reef_tidy %&gt;% 
-  group_by(location) %&gt;%
-  summarize() #eliminate everything except location and sticky geometries</code></pre>
+  distinct(location, latitude, longitude) %&gt;% 
+  st_as_sf(coords=c(&quot;longitude&quot;, &quot;latitude&quot;), crs=4326) #Make sticky geometries for lat/long</code></pre>
 </div>
 <div id="find-species-diversityrichness-for-each-site" class="section level4">
 <h4>Find species diversity/richness for each site</h4>
@@ -5499,7 +5498,6 @@ reef_vegan &lt;- reef_tidy %&gt;% #named so because of the vegan package!
 
 #Calculate species diversity and richness for each site
 reef_vegan_subset &lt;- reef_vegan %&gt;%
-  st_drop_geometry() %&gt;% #remove sticky geometry so it doesn&#39;t attach to species name
   pivot_wider(names_from=grouped_species, values_from=mean_count) %&gt;% 
   select(`Abietinaria spp`:`Zonaria farlowii`)
 
@@ -5552,37 +5550,34 @@ reef_vegan &lt;- reef_location_unique %&gt;%
 </div>
 <div id="create-a-table-of-percent-co-occurence-of-focal-genus-and-neighbor-genera-pick-up-to-3-given-total-number-times-focal-genus-made-an-appearance" class="section level3">
 <h3>Create a table of percent co-occurence of focal genus and neighbor genera (PICK UP TO 3), given total number times focal genus made an appearance</h3>
-<pre class="r"><code>#Find number of times genus makes an appearance
-reef_present &lt;- reef_tidy %&gt;%
-  st_drop_geometry() %&gt;% #remove sticky geometry because we don&#39;t need it
+<pre class="r"><code>#Find number of times focal phylum makes an appearance
+reef_focal &lt;- reef_tidy %&gt;%
   filter(binary &gt; &quot;0&quot;) %&gt;% 
-  mutate(to_match = ifelse(phylum %in% c(&quot;cnidaria&quot;), filename, &quot;FALSE&quot;)) %&gt;% #create a column that we can subset all rows in a plot based on the presence of focal genera in the plot at least once
-  filter(filename %in% to_match) %&gt;% #if focal genus is present, keep all observations of that plot (&quot;filename&quot;)
+  mutate(to_match = ifelse(phylum %in% c(&quot;cnidaria&quot;), filename, &quot;FALSE&quot;)) %&gt;% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
+  filter(filename %in% to_match) %&gt;% #if focal phylum is present, keep all observations of that plot (&quot;filename&quot;)
   filter(!str_detect(to_match, pattern=&quot;FALSE&quot;)) %&gt;% #drop rows containing FALSE
-  distinct(filename, phylum) #remove duplicate plots
+  distinct(filename) #get unique plots containing focal phylum
 
-present &lt;- nrow(reef_present)
+present &lt;- nrow(reef_focal)
 
-#Find number of times neighbor genera make an appearance
+#Find number of times neighbor phyla make an appearance
 reef_neighbor &lt;- reef_tidy %&gt;%
-  st_drop_geometry() %&gt;% #remove sticky geometry because we don&#39;t need it
   filter(binary &gt; &quot;0&quot;) %&gt;%
-  mutate(to_match = ifelse(phylum %in% c(&quot;arthropoda&quot;, &quot;chordata&quot;, &quot;echinodermata&quot;), filename, &quot;FALSE&quot;)) %&gt;% #create a column that we can subset all rows in a plot based on the presence of focal genera in the plot at least once
-  filter(filename %in% to_match) %&gt;% #if focal genera are present, keep all observations of that plot (&quot;filename&quot;)
+  mutate(to_match = ifelse(phylum %in% c(&quot;arthropoda&quot;, &quot;chordata&quot;, &quot;echinodermata&quot;), filename, &quot;FALSE&quot;)) %&gt;%
+  filter(filename %in% to_match) %&gt;%
   filter(!str_detect(to_match, pattern=&quot;FALSE&quot;)) %&gt;% 
-  distinct(filename, phylum)
+  distinct(filename)
 
 absent &lt;- nrow(reef_neighbor)
 
-#Find number of times focal genus co-occurs with neighbor genus
+#Find number of times focal phylum co-occurs with neighbor genus
 reef_together &lt;- reef_tidy %&gt;%
-  st_drop_geometry() %&gt;% #remove sticky geometry because we don&#39;t need it
   filter(binary &gt; &quot;0&quot;) %&gt;% 
-  mutate(FOCAL=&quot;Corynactis&quot;) %&gt;% #pick a focal genus (BASED ON INPUT)
-  mutate(to_match = ifelse(grouped_genus==FOCAL, filename, &quot;FALSE&quot;)) %&gt;% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
-  filter(filename %in% to_match) %&gt;% #if focal genus is present, keep all observations of that plot (&quot;filename&quot;)
-  filter(phylum %in% c(&quot;arthropoda&quot;, &quot;chordata&quot;, &quot;echinodermata&quot;)) %&gt;% #select only the coocurring genera you want to look at (BASED ON INPUT)
-  distinct(filename, phylum)
+  mutate(to_match = ifelse(phylum %in% &quot;cnidaria&quot;, filename, &quot;FALSE&quot;)) %&gt;%
+  filter(filename %in% to_match) %&gt;% 
+  mutate(to_match = ifelse(phylum %in% c(&quot;arthropoda&quot;, &quot;chordata&quot;, &quot;echinodermata&quot;), filename, &quot;FALSE&quot;)) %&gt;% #do the same thing again for the neighbor phyla
+  filter(filename %in% to_match) %&gt;% 
+  distinct(filename)
 
 neighborly &lt;- nrow(reef_together)
 
@@ -5605,7 +5600,7 @@ reef_table %&gt;%
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
 }
 
-#twwuoztplk .gt_table {
+#vgdoppfivh .gt_table {
   display: table;
   border-collapse: collapse;
   margin-left: auto;
@@ -5628,7 +5623,7 @@ reef_table %&gt;%
   border-left-color: #D3D3D3;
 }
 
-#twwuoztplk .gt_heading {
+#vgdoppfivh .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -5640,7 +5635,7 @@ reef_table %&gt;%
   border-right-color: #D3D3D3;
 }
 
-#twwuoztplk .gt_title {
+#vgdoppfivh .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -5650,7 +5645,7 @@ reef_table %&gt;%
   border-bottom-width: 0;
 }
 
-#twwuoztplk .gt_subtitle {
+#vgdoppfivh .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -5660,13 +5655,13 @@ reef_table %&gt;%
   border-top-width: 0;
 }
 
-#twwuoztplk .gt_bottom_border {
+#vgdoppfivh .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#twwuoztplk .gt_col_headings {
+#vgdoppfivh .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -5681,7 +5676,7 @@ reef_table %&gt;%
   border-right-color: #D3D3D3;
 }
 
-#twwuoztplk .gt_col_heading {
+#vgdoppfivh .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -5701,7 +5696,7 @@ reef_table %&gt;%
   overflow-x: hidden;
 }
 
-#twwuoztplk .gt_column_spanner_outer {
+#vgdoppfivh .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -5713,15 +5708,15 @@ reef_table %&gt;%
   padding-right: 4px;
 }
 
-#twwuoztplk .gt_column_spanner_outer:first-child {
+#vgdoppfivh .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#twwuoztplk .gt_column_spanner_outer:last-child {
+#vgdoppfivh .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#twwuoztplk .gt_column_spanner {
+#vgdoppfivh .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -5733,7 +5728,7 @@ reef_table %&gt;%
   width: 100%;
 }
 
-#twwuoztplk .gt_group_heading {
+#vgdoppfivh .gt_group_heading {
   padding: 8px;
   color: #333333;
   background-color: #FFFFFF;
@@ -5755,7 +5750,7 @@ reef_table %&gt;%
   vertical-align: middle;
 }
 
-#twwuoztplk .gt_empty_group_heading {
+#vgdoppfivh .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -5770,19 +5765,19 @@ reef_table %&gt;%
   vertical-align: middle;
 }
 
-#twwuoztplk .gt_striped {
+#vgdoppfivh .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#twwuoztplk .gt_from_md > :first-child {
+#vgdoppfivh .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#twwuoztplk .gt_from_md > :last-child {
+#vgdoppfivh .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#twwuoztplk .gt_row {
+#vgdoppfivh .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -5801,7 +5796,7 @@ reef_table %&gt;%
   overflow-x: hidden;
 }
 
-#twwuoztplk .gt_stub {
+#vgdoppfivh .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -5813,7 +5808,7 @@ reef_table %&gt;%
   padding-left: 12px;
 }
 
-#twwuoztplk .gt_summary_row {
+#vgdoppfivh .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -5823,7 +5818,7 @@ reef_table %&gt;%
   padding-right: 5px;
 }
 
-#twwuoztplk .gt_first_summary_row {
+#vgdoppfivh .gt_first_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -5833,7 +5828,7 @@ reef_table %&gt;%
   border-top-color: #D3D3D3;
 }
 
-#twwuoztplk .gt_grand_summary_row {
+#vgdoppfivh .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -5843,7 +5838,7 @@ reef_table %&gt;%
   padding-right: 5px;
 }
 
-#twwuoztplk .gt_first_grand_summary_row {
+#vgdoppfivh .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -5853,7 +5848,7 @@ reef_table %&gt;%
   border-top-color: #D3D3D3;
 }
 
-#twwuoztplk .gt_table_body {
+#vgdoppfivh .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -5862,7 +5857,7 @@ reef_table %&gt;%
   border-bottom-color: #D3D3D3;
 }
 
-#twwuoztplk .gt_footnotes {
+#vgdoppfivh .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -5876,13 +5871,13 @@ reef_table %&gt;%
   border-right-color: #D3D3D3;
 }
 
-#twwuoztplk .gt_footnote {
+#vgdoppfivh .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding: 4px;
 }
 
-#twwuoztplk .gt_sourcenotes {
+#vgdoppfivh .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -5896,46 +5891,46 @@ reef_table %&gt;%
   border-right-color: #D3D3D3;
 }
 
-#twwuoztplk .gt_sourcenote {
+#vgdoppfivh .gt_sourcenote {
   font-size: 90%;
   padding: 4px;
 }
 
-#twwuoztplk .gt_left {
+#vgdoppfivh .gt_left {
   text-align: left;
 }
 
-#twwuoztplk .gt_center {
+#vgdoppfivh .gt_center {
   text-align: center;
 }
 
-#twwuoztplk .gt_right {
+#vgdoppfivh .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#twwuoztplk .gt_font_normal {
+#vgdoppfivh .gt_font_normal {
   font-weight: normal;
 }
 
-#twwuoztplk .gt_font_bold {
+#vgdoppfivh .gt_font_bold {
   font-weight: bold;
 }
 
-#twwuoztplk .gt_font_italic {
+#vgdoppfivh .gt_font_italic {
   font-style: italic;
 }
 
-#twwuoztplk .gt_super {
+#vgdoppfivh .gt_super {
   font-size: 65%;
 }
 
-#twwuoztplk .gt_footnote_marks {
+#vgdoppfivh .gt_footnote_marks {
   font-style: italic;
   font-size: 65%;
 }
 </style>
-<div id="twwuoztplk" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;"><table class="gt_table">
+<div id="vgdoppfivh" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;"><table class="gt_table">
   
   <thead class="gt_col_headings">
     <tr>
@@ -5949,17 +5944,45 @@ reef_table %&gt;%
   <tbody class="gt_table_body">
     <tr>
       <td class="gt_row gt_center">1096</td>
-      <td class="gt_row gt_center">2155</td>
+      <td class="gt_row gt_center">1145</td>
       <td class="gt_row gt_center">1042</td>
       <td class="gt_row gt_right">95.07&percnt;</td>
-      <td class="gt_row gt_right">48.35&percnt;</td>
+      <td class="gt_row gt_right">91.00&percnt;</td>
     </tr>
   </tbody>
   
   
 </table></div>
+<p>Some alternative methods to creating a table</p>
+<pre class="r"><code>df1 &lt;- tribble(
+  ~&#39;neighbor&#39;, ~&#39;focal&#39;, ~&#39;together&#39;,  
+  nrow(reef_neighbor), nrow(reef_focal), nrow(reef_together)         
+) %&gt;%
+  mutate(percent_focal = together/focal,
+         percent_neighbor = together/neighbor) %&gt;%
+  gt() %&gt;% 
+  fmt_percent(columns=vars(percent_focal, percent_neighbor), decimal=1) %&gt;% 
+  tab_options(table.width = pct(80)) %&gt;% #make the table width 80% of the page width
+  cols_label(focal=&quot;Focal phylum present&quot;,
+             neighbor = &quot;Neighbor phyla present&quot;,
+             together=&quot;Phyla present together&quot;,
+             percent_focal=&quot;Percent focal co-occurrs with neighbors&quot;,
+             percent_neighbor=&quot;Percent neighbors co-occurs with focal&quot;)
+
+df2 &lt;- as.data.frame(cbind(nrow(reef_focal), nrow(reef_neighbor), nrow(reef_together))) %&gt;% 
+  mutate(percent_focal = V3/V1,
+         percent_neighbor = V3/V2) %&gt;%
+  gt() %&gt;% 
+  fmt_percent(columns=vars(percent_focal, percent_neighbor), decimal=1) %&gt;% 
+  tab_options(table.width = pct(80)) %&gt;% #make the table width 80% of the page width
+  cols_label(V1=&quot;Focal phylum present&quot;,
+             V2 = &quot;Neighbor phyla present&quot;,
+             V3=&quot;Phyla present together&quot;,
+             percent_focal=&quot;Percent focal co-occurrs with neighbors&quot;,
+             percent_neighbor=&quot;Percent neighbors co-occurs with focal&quot;)</code></pre>
 <pre class="r"><code>reef_summary &lt;- reef_tidy %&gt;%
   filter(binary &gt; &quot;0&quot;) %&gt;% #filter out species not present
+  st_as_sf(coords=c(&quot;longitude&quot;, &quot;latitude&quot;), crs=4326) %&gt;% #Make sticky geometries for lat/long
   group_by(location,phylum) %&gt;% #group by location, then lat/long
   summarize(mean_count = mean(value), #get the mean count
             median_count = median(value),
@@ -5989,20 +6012,20 @@ reef_map &lt;- tm_basemap(&quot;Esri.WorldImagery&quot;) +
 tmap_mode(&quot;view&quot;) #view = interactive
 reef_map</code></pre>
 <div style="display:inline;width:49%;float:left;border-style:solid;border-color:#BEBEBE;border-width:1px 1px 1px 1px;">
-<div id="htmlwidget-9925" style="width:100%;height:400px;" class="leaflet html-widget"></div>
-<script type="application/json" data-for="htmlwidget-9925">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"createMapPane","args":["tmap401",401]},{"method":"addProviderTiles","args":["Esri.WorldImagery",null,"Esri.WorldImagery",{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"pane":"tilePane"}]},{"method":"addCircles","args":[34.3922233333333,-119.54282,1835.58997780772,"Carp.Reef","reef_sf",{"interactive":true,"className":"","pane":"tmap401","stroke":true,"color":"#666666","weight":1,"opacity":0.5,"fill":true,"fillColor":"#A020F0","fillOpacity":1},"<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Carp Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">mean_count<\/td><td align=\"right\"><nobr>2.390<\/nobr><\/td><\/tr><\/table><\/div>",null,"Carp Reef",{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addLayersControl","args":[[],"reef_sf",{"collapsed":true,"autoZIndex":true,"position":"topleft"}]}],"limits":{"lat":[34.3922233333333,34.3922233333333],"lng":[-119.54282,-119.54282]},"fitBounds":[33.8922233333333,-120.04282,34.8922233333333,-119.04282,[]]},"evals":[],"jsHooks":{"render":[{"code":"function(el, x, data) {\n  return (\n\t\t\t\t\tfunction(el, x) {\n\t\t\t\t\t\tvar tldiv = document.getElementsByClassName(\"leaflet-top leaflet-left\")[0];\n\t\t\t\t\t\tvar titlediv = document.createElement('div');\n\t\t\t\t\t\ttitlediv.className = \"info legend leaflet-control\";\n\t\t\t\t\t\ttitlediv.innerHTML = \"<b>annelida<\/b>\";\n\t\t\t\t\t\ttldiv.insertBefore(titlediv, tldiv.childNodes[0]);\n\t\t\t\t\t}).call(this.getMap(), el, x, data);\n}","data":null}]}}</script>
+<div id="htmlwidget-5224" style="width:100%;height:400px;" class="leaflet html-widget"></div>
+<script type="application/json" data-for="htmlwidget-5224">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"createMapPane","args":["tmap401",401]},{"method":"addProviderTiles","args":["Esri.WorldImagery",null,"Esri.WorldImagery",{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"pane":"tilePane"}]},{"method":"addCircles","args":[34.39233,-119.54442,1835.59000986386,"Carp.Reef","reef_sf",{"interactive":true,"className":"","pane":"tmap401","stroke":true,"color":"#666666","weight":1,"opacity":0.5,"fill":true,"fillColor":"#A020F0","fillOpacity":1},"<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Carp Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">mean_count<\/td><td align=\"right\"><nobr>2.390<\/nobr><\/td><\/tr><\/table><\/div>",null,"Carp Reef",{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addLayersControl","args":[[],"reef_sf",{"collapsed":true,"autoZIndex":true,"position":"topleft"}]}],"limits":{"lat":[34.39233,34.39233],"lng":[-119.54442,-119.54442]},"fitBounds":[33.89233,-120.04442,34.89233,-119.04442,[]]},"evals":[],"jsHooks":{"render":[{"code":"function(el, x, data) {\n  return (\n\t\t\t\t\tfunction(el, x) {\n\t\t\t\t\t\tvar tldiv = document.getElementsByClassName(\"leaflet-top leaflet-left\")[0];\n\t\t\t\t\t\tvar titlediv = document.createElement('div');\n\t\t\t\t\t\ttitlediv.className = \"info legend leaflet-control\";\n\t\t\t\t\t\ttitlediv.innerHTML = \"<b>annelida<\/b>\";\n\t\t\t\t\t\ttldiv.insertBefore(titlediv, tldiv.childNodes[0]);\n\t\t\t\t\t}).call(this.getMap(), el, x, data);\n}","data":null}]}}</script>
 </div>
 <div style="display:inline;width:49%;float:left;border-style:solid;border-color:#BEBEBE;border-width:1px 1px 1px 1px;">
-<div id="htmlwidget-4773" style="width:100%;height:400px;" class="leaflet html-widget"></div>
-<script type="application/json" data-for="htmlwidget-4773">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"createMapPane","args":["tmap401",401]},{"method":"addProviderTiles","args":["Esri.WorldImagery",null,"Esri.WorldImagery",{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"pane":"tilePane"}]},{"method":"addCircles","args":[34.3922233333333,-119.54282,1454.11983283398,"Carp.Reef","reef_sf",{"interactive":true,"className":"","pane":"tmap401","stroke":true,"color":"#666666","weight":1,"opacity":0.5,"fill":true,"fillColor":"#A020F0","fillOpacity":1},"<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Carp Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">mean_count<\/td><td align=\"right\"><nobr>1.5<\/nobr><\/td><\/tr><\/table><\/div>",null,"Carp Reef",{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addLayersControl","args":[[],"reef_sf",{"collapsed":true,"autoZIndex":true,"position":"topleft"}]}],"limits":{"lat":[34.3922233333333,34.3922233333333],"lng":[-119.54282,-119.54282]},"fitBounds":[33.8922233333333,-120.04282,34.8922233333333,-119.04282,[]]},"evals":[],"jsHooks":{"render":[{"code":"function(el, x, data) {\n  return (\n\t\t\t\t\tfunction(el, x) {\n\t\t\t\t\t\tvar tldiv = document.getElementsByClassName(\"leaflet-top leaflet-left\")[1];\n\t\t\t\t\t\tvar titlediv = document.createElement('div');\n\t\t\t\t\t\ttitlediv.className = \"info legend leaflet-control\";\n\t\t\t\t\t\ttitlediv.innerHTML = \"<b>arthropoda<\/b>\";\n\t\t\t\t\t\ttldiv.insertBefore(titlediv, tldiv.childNodes[0]);\n\t\t\t\t\t}).call(this.getMap(), el, x, data);\n}","data":null}]}}</script>
+<div id="htmlwidget-7030" style="width:100%;height:400px;" class="leaflet html-widget"></div>
+<script type="application/json" data-for="htmlwidget-7030">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"createMapPane","args":["tmap401",401]},{"method":"addProviderTiles","args":["Esri.WorldImagery",null,"Esri.WorldImagery",{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"pane":"tilePane"}]},{"method":"addCircles","args":[34.39233,-119.54442,1454.11985822826,"Carp.Reef","reef_sf",{"interactive":true,"className":"","pane":"tmap401","stroke":true,"color":"#666666","weight":1,"opacity":0.5,"fill":true,"fillColor":"#A020F0","fillOpacity":1},"<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Carp Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">mean_count<\/td><td align=\"right\"><nobr>1.5<\/nobr><\/td><\/tr><\/table><\/div>",null,"Carp Reef",{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addLayersControl","args":[[],"reef_sf",{"collapsed":true,"autoZIndex":true,"position":"topleft"}]}],"limits":{"lat":[34.39233,34.39233],"lng":[-119.54442,-119.54442]},"fitBounds":[33.89233,-120.04442,34.89233,-119.04442,[]]},"evals":[],"jsHooks":{"render":[{"code":"function(el, x, data) {\n  return (\n\t\t\t\t\tfunction(el, x) {\n\t\t\t\t\t\tvar tldiv = document.getElementsByClassName(\"leaflet-top leaflet-left\")[1];\n\t\t\t\t\t\tvar titlediv = document.createElement('div');\n\t\t\t\t\t\ttitlediv.className = \"info legend leaflet-control\";\n\t\t\t\t\t\ttitlediv.innerHTML = \"<b>arthropoda<\/b>\";\n\t\t\t\t\t\ttldiv.insertBefore(titlediv, tldiv.childNodes[0]);\n\t\t\t\t\t}).call(this.getMap(), el, x, data);\n}","data":null}]}}</script>
 </div>
 <div style="display:inline;width:49%;float:left;border-style:solid;border-color:#BEBEBE;border-width:1px 1px 1px 1px;">
-<div id="htmlwidget-169" style="width:100%;height:400px;" class="leaflet html-widget"></div>
-<script type="application/json" data-for="htmlwidget-169">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"createMapPane","args":["tmap401",401]},{"method":"addProviderTiles","args":["Esri.WorldImagery",null,"Esri.WorldImagery",{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"pane":"tilePane"}]},{"method":"addCircles","args":[34.3922233333333,-119.54282,1187.28387176814,"Carp.Reef","reef_sf",{"interactive":true,"className":"","pane":"tmap401","stroke":true,"color":"#666666","weight":1,"opacity":0.5,"fill":true,"fillColor":"#A020F0","fillOpacity":1},"<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Carp Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">mean_count<\/td><td align=\"right\"><nobr>1<\/nobr><\/td><\/tr><\/table><\/div>",null,"Carp Reef",{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addLayersControl","args":[[],"reef_sf",{"collapsed":true,"autoZIndex":true,"position":"topleft"}]}],"limits":{"lat":[34.3922233333333,34.3922233333333],"lng":[-119.54282,-119.54282]},"fitBounds":[33.8922233333333,-120.04282,34.8922233333333,-119.04282,[]]},"evals":[],"jsHooks":{"render":[{"code":"function(el, x, data) {\n  return (\n\t\t\t\t\tfunction(el, x) {\n\t\t\t\t\t\tvar tldiv = document.getElementsByClassName(\"leaflet-top leaflet-left\")[2];\n\t\t\t\t\t\tvar titlediv = document.createElement('div');\n\t\t\t\t\t\ttitlediv.className = \"info legend leaflet-control\";\n\t\t\t\t\t\ttitlediv.innerHTML = \"<b>chlorophyta<\/b>\";\n\t\t\t\t\t\ttldiv.insertBefore(titlediv, tldiv.childNodes[0]);\n\t\t\t\t\t}).call(this.getMap(), el, x, data);\n}","data":null}]}}</script>
+<div id="htmlwidget-3616" style="width:100%;height:400px;" class="leaflet html-widget"></div>
+<script type="application/json" data-for="htmlwidget-3616">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"createMapPane","args":["tmap401",401]},{"method":"addProviderTiles","args":["Esri.WorldImagery",null,"Esri.WorldImagery",{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"pane":"tilePane"}]},{"method":"addCircles","args":[34.39233,-119.54442,1187.28389250248,"Carp.Reef","reef_sf",{"interactive":true,"className":"","pane":"tmap401","stroke":true,"color":"#666666","weight":1,"opacity":0.5,"fill":true,"fillColor":"#A020F0","fillOpacity":1},"<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Carp Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">mean_count<\/td><td align=\"right\"><nobr>1<\/nobr><\/td><\/tr><\/table><\/div>",null,"Carp Reef",{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addLayersControl","args":[[],"reef_sf",{"collapsed":true,"autoZIndex":true,"position":"topleft"}]}],"limits":{"lat":[34.39233,34.39233],"lng":[-119.54442,-119.54442]},"fitBounds":[33.89233,-120.04442,34.89233,-119.04442,[]]},"evals":[],"jsHooks":{"render":[{"code":"function(el, x, data) {\n  return (\n\t\t\t\t\tfunction(el, x) {\n\t\t\t\t\t\tvar tldiv = document.getElementsByClassName(\"leaflet-top leaflet-left\")[2];\n\t\t\t\t\t\tvar titlediv = document.createElement('div');\n\t\t\t\t\t\ttitlediv.className = \"info legend leaflet-control\";\n\t\t\t\t\t\ttitlediv.innerHTML = \"<b>chlorophyta<\/b>\";\n\t\t\t\t\t\ttldiv.insertBefore(titlediv, tldiv.childNodes[0]);\n\t\t\t\t\t}).call(this.getMap(), el, x, data);\n}","data":null}]}}</script>
 </div>
 <div style="display:inline;width:49%;float:left;border-style:solid;border-color:#BEBEBE;border-width:1px 1px 1px 1px;">
-<div id="htmlwidget-9853" style="width:100%;height:400px;" class="leaflet html-widget"></div>
-<script type="application/json" data-for="htmlwidget-9853">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"createMapPane","args":["tmap401",401]},{"method":"addProviderTiles","args":["Esri.WorldImagery",null,"Esri.WorldImagery",{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"pane":"tilePane"}]},{"method":"addCircles","args":[34.3922233333333,-119.54282,2139.43771017573,"Carp.Reef","reef_sf",{"interactive":true,"className":"","pane":"tmap401","stroke":true,"color":"#666666","weight":1,"opacity":0.5,"fill":true,"fillColor":"#A020F0","fillOpacity":1},"<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Carp Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">mean_count<\/td><td align=\"right\"><nobr>3.247<\/nobr><\/td><\/tr><\/table><\/div>",null,"Carp Reef",{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addLayersControl","args":[[],"reef_sf",{"collapsed":true,"autoZIndex":true,"position":"topleft"}]}],"limits":{"lat":[34.3922233333333,34.3922233333333],"lng":[-119.54282,-119.54282]},"fitBounds":[33.8922233333333,-120.04282,34.8922233333333,-119.04282,[]]},"evals":[],"jsHooks":{"render":[{"code":"function(el, x, data) {\n  return (\n\t\t\t\t\tfunction(el, x) {\n\t\t\t\t\t\tvar tldiv = document.getElementsByClassName(\"leaflet-top leaflet-left\")[3];\n\t\t\t\t\t\tvar titlediv = document.createElement('div');\n\t\t\t\t\t\ttitlediv.className = \"info legend leaflet-control\";\n\t\t\t\t\t\ttitlediv.innerHTML = \"<b>chordata<\/b>\";\n\t\t\t\t\t\ttldiv.insertBefore(titlediv, tldiv.childNodes[0]);\n\t\t\t\t\t}).call(this.getMap(), el, x, data);\n}","data":null}]}}</script>
+<div id="htmlwidget-6078" style="width:100%;height:400px;" class="leaflet html-widget"></div>
+<script type="application/json" data-for="htmlwidget-6078">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"createMapPane","args":["tmap401",401]},{"method":"addProviderTiles","args":["Esri.WorldImagery",null,"Esri.WorldImagery",{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"pane":"tilePane"}]},{"method":"addCircles","args":[34.39233,-119.54442,2139.43774753817,"Carp.Reef","reef_sf",{"interactive":true,"className":"","pane":"tmap401","stroke":true,"color":"#666666","weight":1,"opacity":0.5,"fill":true,"fillColor":"#A020F0","fillOpacity":1},"<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Carp Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">mean_count<\/td><td align=\"right\"><nobr>3.247<\/nobr><\/td><\/tr><\/table><\/div>",null,"Carp Reef",{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addLayersControl","args":[[],"reef_sf",{"collapsed":true,"autoZIndex":true,"position":"topleft"}]}],"limits":{"lat":[34.39233,34.39233],"lng":[-119.54442,-119.54442]},"fitBounds":[33.89233,-120.04442,34.89233,-119.04442,[]]},"evals":[],"jsHooks":{"render":[{"code":"function(el, x, data) {\n  return (\n\t\t\t\t\tfunction(el, x) {\n\t\t\t\t\t\tvar tldiv = document.getElementsByClassName(\"leaflet-top leaflet-left\")[3];\n\t\t\t\t\t\tvar titlediv = document.createElement('div');\n\t\t\t\t\t\ttitlediv.className = \"info legend leaflet-control\";\n\t\t\t\t\t\ttitlediv.innerHTML = \"<b>chordata<\/b>\";\n\t\t\t\t\t\ttldiv.insertBefore(titlediv, tldiv.childNodes[0]);\n\t\t\t\t\t}).call(this.getMap(), el, x, data);\n}","data":null}]}}</script>
 </div>
 <script>
 HTMLWidgets.addPostRenderHandler(function() {
@@ -6017,20 +6040,20 @@ var leaf_widgets = {};
                 );
                
 
-leaf_widgets['htmlwidget-4773'].sync(leaf_widgets['htmlwidget-9925'],{syncCursor: true, noInitialSync: true});
-leaf_widgets['htmlwidget-169'].sync(leaf_widgets['htmlwidget-9925'],{syncCursor: true, noInitialSync: true});
-leaf_widgets['htmlwidget-9853'].sync(leaf_widgets['htmlwidget-9925'],{syncCursor: true, noInitialSync: true});
-leaf_widgets['htmlwidget-9925'].sync(leaf_widgets['htmlwidget-4773'],{syncCursor: true, noInitialSync: true});
+leaf_widgets['htmlwidget-7030'].sync(leaf_widgets['htmlwidget-5224'],{syncCursor: true, noInitialSync: true});
+leaf_widgets['htmlwidget-3616'].sync(leaf_widgets['htmlwidget-5224'],{syncCursor: true, noInitialSync: true});
+leaf_widgets['htmlwidget-6078'].sync(leaf_widgets['htmlwidget-5224'],{syncCursor: true, noInitialSync: true});
+leaf_widgets['htmlwidget-5224'].sync(leaf_widgets['htmlwidget-7030'],{syncCursor: true, noInitialSync: true});
 
-leaf_widgets['htmlwidget-169'].sync(leaf_widgets['htmlwidget-4773'],{syncCursor: true, noInitialSync: true});
-leaf_widgets['htmlwidget-9853'].sync(leaf_widgets['htmlwidget-4773'],{syncCursor: true, noInitialSync: true});
-leaf_widgets['htmlwidget-9925'].sync(leaf_widgets['htmlwidget-169'],{syncCursor: true, noInitialSync: true});
-leaf_widgets['htmlwidget-4773'].sync(leaf_widgets['htmlwidget-169'],{syncCursor: true, noInitialSync: true});
+leaf_widgets['htmlwidget-3616'].sync(leaf_widgets['htmlwidget-7030'],{syncCursor: true, noInitialSync: true});
+leaf_widgets['htmlwidget-6078'].sync(leaf_widgets['htmlwidget-7030'],{syncCursor: true, noInitialSync: true});
+leaf_widgets['htmlwidget-5224'].sync(leaf_widgets['htmlwidget-3616'],{syncCursor: true, noInitialSync: true});
+leaf_widgets['htmlwidget-7030'].sync(leaf_widgets['htmlwidget-3616'],{syncCursor: true, noInitialSync: true});
 
-leaf_widgets['htmlwidget-9853'].sync(leaf_widgets['htmlwidget-169'],{syncCursor: true, noInitialSync: true});
-leaf_widgets['htmlwidget-9925'].sync(leaf_widgets['htmlwidget-9853'],{syncCursor: true, noInitialSync: true});
-leaf_widgets['htmlwidget-4773'].sync(leaf_widgets['htmlwidget-9853'],{syncCursor: true, noInitialSync: true});
-leaf_widgets['htmlwidget-169'].sync(leaf_widgets['htmlwidget-9853'],{syncCursor: true, noInitialSync: true});
+leaf_widgets['htmlwidget-6078'].sync(leaf_widgets['htmlwidget-3616'],{syncCursor: true, noInitialSync: true});
+leaf_widgets['htmlwidget-5224'].sync(leaf_widgets['htmlwidget-6078'],{syncCursor: true, noInitialSync: true});
+leaf_widgets['htmlwidget-7030'].sync(leaf_widgets['htmlwidget-6078'],{syncCursor: true, noInitialSync: true});
+leaf_widgets['htmlwidget-3616'].sync(leaf_widgets['htmlwidget-6078'],{syncCursor: true, noInitialSync: true});
 
 });
 </script>
@@ -6046,8 +6069,8 @@ reef_map &lt;- tm_basemap(&quot;Esri.WorldImagery&quot;) +
 
 tmap_mode(&quot;view&quot;) #view = interactive
 reef_map</code></pre>
-<div id="htmlwidget-78b840ddbc368764ecc4" style="width:672px;height:480px;" class="leaflet html-widget"></div>
-<script type="application/json" data-for="htmlwidget-78b840ddbc368764ecc4">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"createMapPane","args":["tmap401",401]},{"method":"addProviderTiles","args":["Esri.WorldImagery",null,"Esri.WorldImagery",{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"pane":"tilePane"}]},{"method":"addCircles","args":[[34.0168101538462,34.3943866666667,34.0155696666667,33.9013816129032,33.9508155882353,34.4000259375,34.42235,33.9927776666667,34.4177533333333,34.3922233333333,34.0339433333333,34.30692,34.469321147541,34.40335,33.6991080327869,34.0226788135593,34.0072474461538,34.0554596849315,34.0449762745098,34.057367028125,34.0328222857143,34.0578494285714],[-119.361175384615,-119.729166666667,-119.371073333333,-120.102783870968,-119.826168823529,-119.7446103125,-119.95293,-119.5635311,-119.901293333333,-119.54282,-119.702024333333,-119.363054594595,-120.124850819672,-119.85702,-119.828641967213,-119.687924237288,-119.432151430769,-119.75518790411,-119.543479411765,-119.764415510417,-120.108352645714,-120.354026285714],[4271.75268024257,4054.11965383993,3997.62000953145,3928.14307792363,3860.71116553744,3834.5311337637,3712.31090024869,3694.897278019,3582.95369696795,3563.34112762994,3532.61303039309,3483.05075329164,3482.52609774424,3447.20869792887,3424.26377515952,3411.69444326593,3392.90604959802,3355.90803646987,3207.67686810192,3171.20615212861,3164.39035304906,3121.18074136436],["Anacapa.Landing","Mohawk","Cathedral.Cove","Johnsons.Lee..North","Gull.Island","Arroyo.Burro","Naples","Yellowbank","Elwood.Mesa.Reef","Carp.Reef","Pelican","Solimar","Arroyo.Quemado","IV.Reef","Hazards","Prisoners","West.End...Cat.Rock","Fry.s","Scorpion","Diablo","Rodes","Cuyler..Bat.Rock"],"reef_sf",{"interactive":true,"className":"","pane":"tmap401","stroke":true,"color":"#666666","weight":1,"opacity":0.5,"fill":true,"fillColor":["#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0"],"fillOpacity":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},["<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Anacapa Landing<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>3.7029<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Mohawk<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>3.3352<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Cathedral Cove<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>3.2429<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Johnsons Lee- North<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>3.1311<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Gull Island<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>3.0246<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Arroyo Burro<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.9837<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Naples<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.7965<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Yellowbank<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.7703<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Elwood Mesa Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.6050<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Carp Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.5766<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Pelican<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.5323<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Solimar<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.4618<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Arroyo Quemado<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.4610<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>IV Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.4114<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Hazards<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.3794<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Prisoners<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.3619<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>West-End &amp; Cat Rock<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.3360<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Fry's<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.2853<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Scorpion<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.0879<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Diablo<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.0407<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Rodes<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.0319<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Cuyler- Bat Rock<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>1.9768<\/nobr><\/td><\/tr><\/table><\/div>"],null,["Anacapa Landing","Mohawk","Cathedral Cove","Johnsons Lee- North","Gull Island","Arroyo Burro","Naples","Yellowbank","Elwood Mesa Reef","Carp Reef","Pelican","Solimar","Arroyo Quemado","IV Reef","Hazards","Prisoners","West-End &amp; Cat Rock","Fry's","Scorpion","Diablo","Rodes","Cuyler- Bat Rock"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addLayersControl","args":[[],"reef_sf",{"collapsed":true,"autoZIndex":true,"position":"topleft"}]}],"limits":{"lat":[33.6991080327869,34.469321147541],"lng":[-120.354026285714,-119.361175384615]},"fitBounds":[33.6991080327869,-120.354026285714,34.469321147541,-119.361175384615,[]]},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-05e5b4896dd3cfcc98b0" style="width:672px;height:480px;" class="leaflet html-widget"></div>
+<script type="application/json" data-for="htmlwidget-05e5b4896dd3cfcc98b0">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"createMapPane","args":["tmap401",401]},{"method":"addProviderTiles","args":["Esri.WorldImagery",null,"Esri.WorldImagery",{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"pane":"tilePane"}]},{"method":"addCircles","args":[[34.03295,34.05745,34.39233,34.03324,34.30674,33.950869,34.02189,33.9933,34.40035,34.39443,34.05968,34.044445,34.42273,34.46928,34.0579,33.90083,34.0162,34.01652,34.055966,34.41772,34.0036,34.4028],[120.1076166,-119.7660333,-119.54442,-119.701077,-119.36285,-119.827671,-119.68704,-119.56363,-119.74528,-119.72825,-119.82766,-119.541427,-119.95228,-120.1264,-120.35392,-120.1025,-119.372641,-119.36145,-119.755516,-119.90117,-119.4242,-119.85757],[3152.78674225548,2992.16168465495,2950.46186192369,2899.18409252499,2849.41565898262,2830.09336594121,2739.88815962304,2727.03595552556,2644.41547989486,2629.94033275527,2607.26131904946,2570.68165214033,2570.2944276969,2544.22825808369,2527.29365214458,2518.0167988435,2504.14993835355,2476.8433843436,2367.4406877453,2340.52330782932,2335.49287592363,2303.60182298707],["Rodes","Diablo","Carp.Reef","Pelican","Solimar","Gull.Island","Prisoners","Yellowbank","Arroyo.Burro","Mohawk","Hazards","Scorpion","Naples","Arroyo.Quemado","Cuyler..Bat.Rock","Johnsons.Lee..North","Cathedral.Cove","Anacapa.Landing","Fry.s","Elwood.Mesa.Reef","West.End...Cat.Rock","IV.Reef"],"reef_sf",{"interactive":true,"className":"","pane":"tmap401","stroke":true,"color":"#666666","weight":1,"opacity":0.5,"fill":true,"fillColor":["#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0","#A020F0"],"fillOpacity":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},["<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Rodes<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>3.7029<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Diablo<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>3.3352<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Carp Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>3.2429<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Pelican<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>3.1311<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Solimar<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>3.0246<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Gull Island<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.9837<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Prisoners<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.7965<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Yellowbank<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.7703<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Arroyo Burro<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.6050<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Mohawk<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.5766<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Hazards<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.5323<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Scorpion<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.4618<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Naples<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.4610<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Arroyo Quemado<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.4114<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Cuyler- Bat Rock<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.3794<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Johnsons Lee- North<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.3619<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Cathedral Cove<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.3360<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Anacapa Landing<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.2853<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Fry's<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.0879<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>Elwood Mesa Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.0407<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>West-End &amp; Cat Rock<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>2.0319<\/nobr><\/td><\/tr><\/table><\/div>","<style> div.leaflet-popup-content {width:auto !important;overflow-y:auto; overflow-x:hidden;}<\/style><div style=\"max-height:25em;padding-right:0px;\"><table>\n\t\t\t   <thead><tr><th colspan=\"2\"><b>IV Reef<\/b><\/th><\/thead><\/tr><tr><td style=\"color: #888888;\">diversity<\/td><td align=\"right\"><nobr>1.9768<\/nobr><\/td><\/tr><\/table><\/div>"],null,["Rodes","Diablo","Carp Reef","Pelican","Solimar","Gull Island","Prisoners","Yellowbank","Arroyo Burro","Mohawk","Hazards","Scorpion","Naples","Arroyo Quemado","Cuyler- Bat Rock","Johnsons Lee- North","Cathedral Cove","Anacapa Landing","Fry's","Elwood Mesa Reef","West-End &amp; Cat Rock","IV Reef"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addLayersControl","args":[[],"reef_sf",{"collapsed":true,"autoZIndex":true,"position":"topleft"}]}],"limits":{"lat":[33.90083,34.46928],"lng":[-120.35392,120.1076166]},"fitBounds":[33.90083,-120.35392,34.46928,120.1076166,[]]},"evals":[],"jsHooks":[]}</script>
 </div>
 </div>
 

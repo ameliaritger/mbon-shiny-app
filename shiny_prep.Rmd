@@ -25,7 +25,7 @@ reef_tidy <- reef %>%
   clean_names() %>% #standardize names
   #rename(latitude=lat_start, longitude=long_start) %>% #rename latitude and longitude
   group_by(location) %>% #group by location to get average lat/long values for each location
-  mutate(latitude=mean(lat_start), longitude=mean(long_start)) %>% #get average lat/long values (because that's how that works...)
+  mutate(latitude=head(lat_end,1), longitude=head(long_end,1)) %>% #get average lat/long values (because that's how that works...)
   ungroup() %>% #really important, we don't want to confuse R!
   pivot_longer("annelida_cirriformia_luxuriosa":"substrate_amphipod_tube_complex") %>%  #make long form
   separate(name, into="phylum", sep="_", remove=FALSE) %>% #Add column for phylum name
@@ -36,11 +36,10 @@ reef_tidy <- reef %>%
 #Because it's faster to do it outside tidyverse
 reef_tidy$binary <- ifelse(reef_tidy$value>0, 1, 0) #Add presence/absence column
 reef_tidy$species <- gsub("^[^_]*_","",reef_tidy$name, perl=TRUE) #Add column for species name
-reef_tidy$longitude <- ifelse(reef_tidy$longitude<0, reef_tidy$longitude, -reef_tidy$longitude) #because all longitude values in this region should be negative 
+#reef_tidy$longitude <- ifelse(reef_tidy$longitude<0, reef_tidy$longitude, -reef_tidy$longitude) #because all longitude values in this region should be negative 
 
 #Do some more tidying
 reef_tidy <- reef_tidy %>%
-  st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>% #Make sticky geometries for lat/long
   mutate(species = str_replace(species, pattern="tube worm", "tubeworm")) %>%  #replace "tube worm" with "tubeworm" for later grouping
   separate(species, into="genus", sep="_", remove=FALSE) %>% #Add column for genus name
   mutate(species=str_replace_all(species, "_", " "),
@@ -96,8 +95,9 @@ reef_summary <- reef_tidy %>%
 
 #Create separate dataframe of just latitude, longitude, and locations (use for later plotting species diversity/richness at each location)
 reef_location_unique <- reef_tidy %>% 
-  group_by(location) %>%
-  summarize() #eliminate everything except location and sticky geometries
+  distinct(location, latitude, longitude) %>% 
+  st_as_sf(coords=c("longitude", "latitude"), crs=4326) #Make sticky geometries for lat/long
+
 ```
 
 #### Find species diversity/richness for each site
@@ -111,7 +111,6 @@ reef_vegan <- reef_tidy %>% #named so because of the vegan package!
 
 #Calculate species diversity and richness for each site
 reef_vegan_subset <- reef_vegan %>%
-  st_drop_geometry() %>% #remove sticky geometry so it doesn't attach to species name
   pivot_wider(names_from=grouped_species, values_from=mean_count) %>% 
   select(`Abietinaria spp`:`Zonaria farlowii`)
 
@@ -167,7 +166,6 @@ I will allow people to pick their focal phylum and co-occuring phylum
 ```{r}
 #Find number of times focal phylum makes an appearance
 reef_focal <- reef_tidy %>%
-  st_drop_geometry() %>% #remove sticky geometry because we don't need it
   filter(binary > "0") %>% 
   mutate(to_match = ifelse(phylum %in% c("cnidaria"), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
   filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
@@ -178,7 +176,6 @@ present <- nrow(reef_focal)
 
 #Find number of times neighbor phyla make an appearance
 reef_neighbor <- reef_tidy %>%
-  st_drop_geometry() %>%
   filter(binary > "0") %>%
   mutate(to_match = ifelse(phylum %in% c("arthropoda", "chordata", "echinodermata"), filename, "FALSE")) %>%
   filter(filename %in% to_match) %>%
@@ -189,7 +186,6 @@ absent <- nrow(reef_neighbor)
 
 #Find number of times focal phylum co-occurs with neighbor genus
 reef_together <- reef_tidy %>%
-  st_drop_geometry() %>%
   filter(binary > "0") %>% 
   mutate(to_match = ifelse(phylum %in% "cnidaria", filename, "FALSE")) %>%
   filter(filename %in% to_match) %>% 
@@ -249,6 +245,7 @@ df2 <- as.data.frame(cbind(nrow(reef_focal), nrow(reef_neighbor), nrow(reef_toge
 ```{r}
 reef_summary <- reef_tidy %>%
   filter(binary > "0") %>% #filter out species not present
+  st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>% #Make sticky geometries for lat/long
   group_by(location,phylum) %>% #group by location, then lat/long
   summarize(mean_count = mean(value), #get the mean count
             median_count = median(value),
