@@ -314,7 +314,11 @@ output$map2 <- renderLeaflet({
 
 output$plot3 <- renderPlot({
   ggplot(reef_index_sf(), aes(x=location, y=!!as.name(input$mapindex))) +
-    geom_col()
+    geom_col() +
+    xlab("Location") +
+    ylab(paste(input$mapindex)) +
+    coord_flip() +
+    theme_minimal()
 })
 
 }
