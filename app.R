@@ -113,45 +113,44 @@ ui <- navbarPage("Amelia's navigation bar",
                                       )
                             )
                           ),
-                 tabPanel("Third tab!!",
-                          h1("third tab header"),
-                          p("here's even more regular text"),
+                 tabPanel("Map - Abundance",
+                          h1("Mean abundance of marine organisms across the SBC"),
+                          p("Calculated from mean count values for each phylum"),
                           sidebarLayout(
-                            sidebarPanel("text be here",
+                            sidebarPanel("",
                                          radioButtons(inputId = "pickacolor", 
-                                                      label = "pick a color!",
+                                                      label = "Pick a color!",
                                                       choices = c("RED!!"="red", "PURPLE!!"="purple", "ORAAAANGE!!!"="orange", "YELLOW!!"="yellow", "GREEEEEN!!"="green")
                                                       ),
                                          radioButtons(inputId="mapit",
-                                                      label="pick a phylum!",
+                                                      label="Pick a phylum!",
                                                       choices=unique(reef_tidy$phylum)
-                                                      ),
-                                         radioButtons(inputId="pickavalue",
-                                                      label="pick an output!",
-                                                      choices=c("mean"="mean_count", "sd"="sd_count")
                                                       )
                                          ),
-                            mainPanel("some more text is here",
-                                      leafletOutput("mysupercoolmap")
+                            mainPanel("",
+                                      leafletOutput("map1")
                                       )
                             )
                           ),
-                 tabPanel("Fourth tab!!",
-                          h1("fourth tab header"),
-                          p("strawberries are a summer fruit"),
+                 tabPanel("Map - Diversity",
+                          h1("Species diversity and richness across the SBC"),
+                          p("Calculated from mean count values for each organism"),
                           sidebarLayout(
-                            sidebarPanel("text be here",
+                            sidebarPanel("",
                                          radioButtons(inputId = "pickanothercolor", 
-                                                      label = "pick a color!",
+                                                      label = "Pick a color!",
                                                       choices = c("RED!!"="red", "PURPLE!!"="purple", "ORAAAANGE!!!"="orange", "YELLOW!!"="yellow", "GREEEEEN!!"="green")
                                          ),
                                          radioButtons(inputId="mapindex",
-                                                      label="pick an output!",
+                                                      label="Pick an output!",
                                                       choices=c("diversity", "richness")
                                          )
                             ),
-                            mainPanel("some more text is here",
-                                      leafletOutput("map2")
+                            mainPanel("",
+                                      leafletOutput("map2"),
+                                      "some more text is now here",
+                                      p("Region’s top costumes:"),
+                                      plotOutput(outputId="plot3")
                             )
                           )
                  )
@@ -290,18 +289,18 @@ reef_summary2 <- reactive({
     filter(phylum==c(input$mapit))
 })
 
-output$mysupercoolmap <- renderLeaflet({
-  reef_map <- tm_basemap("Esri.WorldImagery") +
+output$map1 <- renderLeaflet({
+  reef_map1 <- tm_basemap("Esri.WorldImagery") +
     tm_shape(reef_summary2()) +
-    tm_symbols(id="location", col = input$pickacolor, size = input$pickavalue, scale=2) +
+    tm_symbols(id="location", col = input$pickacolor, size ="mean_count", scale=2) +
     tm_facets(by = "phylum")
   
-  tmap_leaflet(reef_map)
+  tmap_leaflet(reef_map1)
 })
 
 ### TAB 4
 reef_index_sf <- reactive({
-  reef_vegan %>%
+  reef_index_sf <- reef_vegan %>%
     st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
 })
 
@@ -312,6 +311,12 @@ output$map2 <- renderLeaflet({
   
   tmap_leaflet(reef_map2)
 })
+
+output$plot3 <- renderPlot({
+  ggplot(reef_index_sf(), aes(x=location, y=!!as.name(input$mapindex))) +
+    geom_col()
+})
+
 }
 
 ####################################################################
