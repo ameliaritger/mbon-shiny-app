@@ -36,7 +36,7 @@ reef_tidy <- reef %>%
 #Because it's faster to do it outside tidyverse
 reef_tidy$binary <- ifelse(reef_tidy$value>0, 1, 0) #Add presence/absence column
 reef_tidy$species <- gsub("^[^_]*_","",reef_tidy$name, perl=TRUE) #Add column for species name
-#reef_tidy$longitude <- ifelse(reef_tidy$longitude<0, reef_tidy$longitude, -reef_tidy$longitude) #because all longitude values in this region should be negative 
+reef_tidy$longitude <- ifelse(reef_tidy$longitude<0, reef_tidy$longitude, -reef_tidy$longitude) #because all longitude values in this region should be negative - looking at you, Rodes... 
 
 #Do some more tidying
 reef_tidy <- reef_tidy %>%

@@ -18,7 +18,7 @@ reef <- read_csv("MBONReef_Histogram.csv")
 reef_tidy <- reef %>%
   clean_names() %>% #standardize names
   group_by(location) %>% #group by location to get average lat/long values for each location
-  mutate(latitude=mean(lat_start), longitude=mean(long_start)) %>% #get average lat/long values (because that's how that works...)
+  mutate(latitude=head(lat_start,1), longitude=head(long_start,1)) %>% #get average lat/long values (because that's how that works...)
   ungroup() %>% #really important, we don't want to confuse R!
   pivot_longer("annelida_cirriformia_luxuriosa":"substrate_amphipod_tube_complex") %>%  #make long form
   separate(name, into="phylum", sep="_", remove=FALSE) %>% #Add column for phylum name
@@ -29,7 +29,7 @@ reef_tidy <- reef %>%
 #Because it's faster to do it outside tidyverse
 reef_tidy$binary <- ifelse(reef_tidy$value>0, 1, 0) #Add presence/absence column
 reef_tidy$species <- gsub("^[^_]*_","",reef_tidy$name, perl=TRUE) #Add column for species name
-reef_tidy$longitude <- ifelse(reef_tidy$longitude<0, reef_tidy$longitude, -reef_tidy$longitude) #because all longitude values in this region should be negative 
+reef_tidy$longitude <- ifelse(reef_tidy$longitude<0, reef_tidy$longitude, -reef_tidy$longitude) #because all longitude values in this region should be negative - looking at you, Rodes...
 
 #Do some more tidying
 reef_tidy <- reef_tidy %>%
