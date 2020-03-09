@@ -45,7 +45,6 @@ reef_tidy <- reef_tidy %>%
   mutate(grouped_genus = ifelse(str_detect(grouped_species, pattern = "Other"), grouped_species, ifelse(str_detect(grouped_species, pattern = "orange"), grouped_species, ifelse(str_detect(grouped_species, pattern = "White"), grouped_species, ifelse(str_detect(grouped_species, pattern = "encrusting"), grouped_species, ifelse(str_detect(grouped_species, pattern = "zigzag"), grouped_species, ifelse(str_detect(grouped_species, pattern = "solitary"), grouped_species, ifelse(str_detect(grouped_species, pattern = "sectioned"), grouped_species, genus)))))))) %>% #do the same for genus
   mutate(grouped_genus = str_to_title(grouped_genus)) #capitalize first word of genus
 
-####################################################################
 #Create separate dataframe of just latitude, longitude, and locations (use for later plotting species diversity/richness at each location)
 reef_location <- reef_tidy %>% 
   distinct(location, latitude, longitude)
@@ -142,7 +141,7 @@ ui <- navbarPage("Amelia's navigation bar",
                           p("strawberries are a summer fruit"),
                           sidebarLayout(
                             sidebarPanel("text be here",
-                                         radioButtons(inputId = "pickacolor", 
+                                         radioButtons(inputId = "pickanothercolor", 
                                                       label = "pick a color!",
                                                       choices = c("RED!!"="red", "PURPLE!!"="purple", "ORAAAANGE!!!"="orange", "YELLOW!!"="yellow", "GREEEEEN!!"="green")
                                          ),
@@ -300,24 +299,20 @@ output$mysupercoolmap <- renderLeaflet({
   tmap_leaflet(reef_map)
 })
 
-######
 ### TAB 4
-reef_index_df <- reactive({
+reef_index_sf <- reactive({
   reef_vegan %>%
     st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
 })
 
 output$map2 <- renderLeaflet({
   reef_map2 <- tm_basemap("Esri.WorldImagery") +
-    tm_shape(reef_index_df()) +
-    tm_symbols(id="location", col = input$pickacolor, size = input$mapindex, scale=2)
+    tm_shape(reef_index_sf()) +
+    tm_symbols(id="location", col = input$pickanothercolor, size = input$mapindex, scale=2)
   
   tmap_leaflet(reef_map2)
 })
 }
-
-
-
 
 ####################################################################
 # Let R know you want to combine ui and server into an app
