@@ -71,44 +71,44 @@ reef_vegan <- reef_location %>%
 
 ####################################################################
 #Create user interface
-ui <- navbarPage("Amelia's navigation bar",
-                 theme = shinytheme("cerulean"),
-                 tabPanel("First tab!!",
-                          h1("first tab header"),
-                          p("here's some regular text"),
+ui <- navbarPage("Marine Biodiversity Observation Network",
+                 theme = shinytheme("simplex"),
+                 tabPanel("Neighbors",
+                          h1("Will you be my neighbor? Evaluating how often organisms are found together."),
+                          p(""),
                           sidebarLayout(
-                            sidebarPanel("here's some text",
+                            sidebarPanel("",
                                          selectInput(inputId="pickaphylum",
-                                                     label="pick a phylum!",
+                                                     label="Pick a phylum!",
                                                      choices=unique(reef_tidy$phylum)
                                                      ),
                                          pickerInput(inputId="coocurring",
-                                                     label="pick some more phyla!",
+                                                     label="Pick some neighbors!",
                                                      choices=unique(reef_tidy$phylum),
                                                      options = list(`actions-box`=TRUE,
                                                                     `selected-text-format` = "count > 3"),
                                                      multiple = TRUE)
                                          ),
-                            mainPanel("some more text is now here",
-                                      p("Region’s top costumes:"),
+                            mainPanel("",
+                                      p(""),
                                       plotOutput(outputId="plot1"),
-                                      "here's another set of text",
-                                      p("My outputs are here"),
+                                      "",
+                                      p(""),
                                       gt_output(outputId="table1")
                                       )
                             )
                           ),
-                 tabPanel("Second tab!!",
-                          h1("second tab header"),
-                          p("here's some more regular text"),
+                 tabPanel("Sites",
+                          h1("Phylum abundances at each site"),
+                          p("Calculated from presence (0 or 1) in replicate plots"),
                           sidebarLayout(
-                            sidebarPanel("some text is here",
-                                         radioButtons(inputId="locationselect",
-                                                            label="pick a location!",
+                            sidebarPanel("",
+                                         selectInput(inputId="locationselect",
+                                                            label="Pick a location!",
                                                             choices=unique(reef_tidy$location)
                                                       )
                                          ),
-                            mainPanel("some more text is here",
+                            mainPanel("",
                                       plotOutput(outputId="plot2")
                                       )
                             )
@@ -122,13 +122,15 @@ ui <- navbarPage("Amelia's navigation bar",
                                                       label = "Pick a color!",
                                                       choices = c("RED!!"="red", "PURPLE!!"="purple", "ORAAAANGE!!!"="orange", "YELLOW!!"="yellow", "GREEEEEN!!"="green")
                                                       ),
-                                         radioButtons(inputId="mapit",
+                                         selectInput(inputId="mapit",
                                                       label="Pick a phylum!",
                                                       choices=unique(reef_tidy$phylum)
                                                       )
                                          ),
                             mainPanel("",
-                                      leafletOutput("map1")
+                                      leafletOutput("map1"),
+                                      p("Plot of mean count values at each site across the SBC"),
+                                      plotOutput(outputId="plot3")
                                       )
                             )
                           ),
@@ -148,9 +150,9 @@ ui <- navbarPage("Amelia's navigation bar",
                             ),
                             mainPanel("",
                                       leafletOutput("map2"),
-                                      "some more text is now here",
-                                      p("Region’s top costumes:"),
-                                      plotOutput(outputId="plot3")
+                                      "",
+                                      p("Plot of species diversity or richness at each site across the SBC"),
+                                      plotOutput(outputId="plot4")
                             )
                           )
                  )
@@ -199,8 +201,8 @@ reef_phylum <- reactive({
 output$plot1 <- renderPlot({
   ggplot(reef_phylum(), aes(x=fct_rev(phylum))) +
     geom_bar() +
-    xlab("hello, world!") +
-    ylab(paste("Abundance with",input$pickaphylum)) +
+    xlab("Phylum") +
+    ylab(paste("Abundance in plots also containing",input$pickaphylum)) +
     coord_flip() +
     theme_minimal()
    })
@@ -241,10 +243,10 @@ reef_table <- reactive({
            percent_neighbor = V3/V2) %>%
     gt() %>% 
     fmt_percent(columns=vars(percent_focal, percent_neighbor), decimal=1) %>% 
-    tab_options(table.width = pct(80)) %>% #make the table width 80% of the page width
-    cols_label(V1=paste(input$pickaphylum, "present"),
-               V2="Neighboring phyla present",
-               V3=paste(input$pickaphylum,"and neighboring phyla present together"),
+    tab_options(table.width = pct(90)) %>% #make the table width 80% of the page width
+    cols_label(V1=paste("Plots with",input$pickaphylum),
+               V2="Plots with neighboring phyla",
+               V3=paste("Plots with both",input$pickaphylum,"and neighboring phyla"),
                percent_focal=paste("Percent", input$pickaphylum, "co-occurrs with neighboring phyla"),
                percent_neighbor=paste("Percent neighboring phyla co-occur with", input$pickaphylum))
 })
@@ -270,7 +272,7 @@ output$plot2 <- renderPlot({
   ggplot(data=reef_summary(), aes(x=phylum, y=sample_size)) +
     geom_col() +
     coord_flip() +
-    ylab("Number of plots containing each phylum") +
+    ylab("Number of plots") +
     xlab("Phylum") +
     theme_minimal()
 })
@@ -298,6 +300,16 @@ output$map1 <- renderLeaflet({
   tmap_leaflet(reef_map1)
 })
 
+output$plot3 <- renderPlot({
+  ggplot(reef_summary2(), aes(x=location, y=mean_count)) +
+    geom_col() +
+    xlab("Location") +
+    ylab("Mean count value") +
+    coord_flip() +
+    theme_minimal()
+})
+######
+
 ### TAB 4
 reef_index_sf <- reactive({
   reef_index_sf <- reef_vegan %>%
@@ -312,7 +324,7 @@ output$map2 <- renderLeaflet({
   tmap_leaflet(reef_map2)
 })
 
-output$plot3 <- renderPlot({
+output$plot4 <- renderPlot({
   ggplot(reef_index_sf(), aes(x=location, y=!!as.name(input$mapindex))) +
     geom_col() +
     xlab("Location") +
