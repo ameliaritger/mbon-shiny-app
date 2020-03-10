@@ -73,6 +73,64 @@ reef_vegan <- reef_location %>%
 #Create user interface
 ui <- navbarPage("Marine Biodiversity Observation Network",
                  theme = shinytheme("simplex"),
+                 tabPanel("Map - Diversity",
+                          h1("Species diversity and richness across the SBC"),
+                          p("Calculated from mean count values for each organism"),
+                          sidebarLayout(
+                            sidebarPanel("",
+                                         radioButtons(inputId = "pickanothercolor", 
+                                                      label = "Pick a color!",
+                                                      choices = c("RED!!"="red", "PURPLE!!"="purple", "ORAAAANGE!!!"="orange", "YELLOW!!"="yellow", "GREEEEEN!!"="green")
+                                         ),
+                                         radioButtons(inputId="mapindex",
+                                                      label="Pick an output!",
+                                                      choices=c("diversity", "richness")
+                                         )
+                            ),
+                            mainPanel("",
+                                      leafletOutput("map2"),
+                                      "",
+                                      p("Plot of species diversity or richness at each site across the SBC"),
+                                      plotOutput(outputId="plot4")
+                            )
+                          )
+                 ),
+                 tabPanel("Map - Abundance",
+                          h1("Mean abundance of marine organisms across the SBC"),
+                          p("Calculated from mean count values for each phylum"),
+                          sidebarLayout(
+                            sidebarPanel("",
+                                         radioButtons(inputId = "pickacolor", 
+                                                      label = "Pick a color!",
+                                                      choices = c("RED!!"="red", "PURPLE!!"="purple", "ORAAAANGE!!!"="orange", "YELLOW!!"="yellow", "GREEEEEN!!"="green")
+                                         ),
+                                         selectInput(inputId="mapit",
+                                                     label="Pick a phylum!",
+                                                     choices=unique(reef_tidy$phylum)
+                                         )
+                            ),
+                            mainPanel("",
+                                      leafletOutput("map1"),
+                                      p("Plot of mean count values at each site across the SBC"),
+                                      plotOutput(outputId="plot3")
+                            )
+                          )
+                 ),
+                 tabPanel("Community",
+                          h1("Community composition at each site"),
+                          p("Calculated from presence (0 or 1) in replicate plots"),
+                          sidebarLayout(
+                            sidebarPanel("",
+                                         selectInput(inputId="locationselect",
+                                                     label="Pick a location!",
+                                                     choices=unique(reef_tidy$location)
+                                         )
+                            ),
+                            mainPanel("",
+                                      plotOutput(outputId="plot2")
+                            )
+                          )
+                 ),
                  tabPanel("Neighbors",
                           h1("Will you be my neighbor? Evaluating how often organisms are found together."),
                           p(""),
@@ -97,65 +155,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                       gt_output(outputId="table1")
                                       )
                             )
-                          ),
-                 tabPanel("Sites",
-                          h1("Phylum abundances at each site"),
-                          p("Calculated from presence (0 or 1) in replicate plots"),
-                          sidebarLayout(
-                            sidebarPanel("",
-                                         selectInput(inputId="locationselect",
-                                                            label="Pick a location!",
-                                                            choices=unique(reef_tidy$location)
-                                                      )
-                                         ),
-                            mainPanel("",
-                                      plotOutput(outputId="plot2")
-                                      )
-                            )
-                          ),
-                 tabPanel("Map - Abundance",
-                          h1("Mean abundance of marine organisms across the SBC"),
-                          p("Calculated from mean count values for each phylum"),
-                          sidebarLayout(
-                            sidebarPanel("",
-                                         radioButtons(inputId = "pickacolor", 
-                                                      label = "Pick a color!",
-                                                      choices = c("RED!!"="red", "PURPLE!!"="purple", "ORAAAANGE!!!"="orange", "YELLOW!!"="yellow", "GREEEEEN!!"="green")
-                                                      ),
-                                         selectInput(inputId="mapit",
-                                                      label="Pick a phylum!",
-                                                      choices=unique(reef_tidy$phylum)
-                                                      )
-                                         ),
-                            mainPanel("",
-                                      leafletOutput("map1"),
-                                      p("Plot of mean count values at each site across the SBC"),
-                                      plotOutput(outputId="plot3")
-                                      )
-                            )
-                          ),
-                 tabPanel("Map - Diversity",
-                          h1("Species diversity and richness across the SBC"),
-                          p("Calculated from mean count values for each organism"),
-                          sidebarLayout(
-                            sidebarPanel("",
-                                         radioButtons(inputId = "pickanothercolor", 
-                                                      label = "Pick a color!",
-                                                      choices = c("RED!!"="red", "PURPLE!!"="purple", "ORAAAANGE!!!"="orange", "YELLOW!!"="yellow", "GREEEEEN!!"="green")
-                                         ),
-                                         radioButtons(inputId="mapindex",
-                                                      label="Pick an output!",
-                                                      choices=c("diversity", "richness")
-                                         )
-                            ),
-                            mainPanel("",
-                                      leafletOutput("map2"),
-                                      "",
-                                      p("Plot of species diversity or richness at each site across the SBC"),
-                                      plotOutput(outputId="plot4")
-                            )
                           )
-                 )
 )
                  
 
