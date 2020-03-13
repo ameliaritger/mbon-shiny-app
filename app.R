@@ -73,6 +73,14 @@ reef_vegan <- reef_location %>%
 #Create user interface
 ui <- navbarPage("Marine Biodiversity Observation Network",
                  theme = shinytheme("simplex"),
+                 tabPanel("Metadata",
+                          h1("What's the deal with this app?"),
+                          p("I'm glad you asked..."),
+                            mainPanel("here's the thing...",
+                                      p("Here's another thing..."),
+                                      
+                            )
+                          ),
                  tabPanel("Map - Diversity",
                           h1("Species diversity and richness across the SBC"),
                           p("Calculated from mean count values for each organism"),
