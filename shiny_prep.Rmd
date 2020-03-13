@@ -246,13 +246,14 @@ df2 <- as.data.frame(cbind(nrow(reef_focal), nrow(reef_neighbor), nrow(reef_toge
 reef_summary <- reef_tidy %>%
   filter(binary > "0") %>% #filter out species not present
   st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>% #Make sticky geometries for lat/long
-  group_by(location,phylum) %>% #group by location, then lat/long
+  group_by(location,phylum,orientation) %>% #group by location, then lat/long (and then orientation for vert/horizontal comparisons)
   summarize(mean_count = mean(value), #get the mean count
             median_count = median(value),
             sd_count = sd(value), #get the s.d. count
             iqr = IQR(value), #get the interquartile range for the count
             sample_size = n()) %>% 
-  filter(location=="Carp Reef")
+  filter(location=="Carp Reef",
+         str_detect(orientation,pattern="l")) #add filter to separate vertical from horizontal
 
 ggplot(data=reef_summary, aes(x=phylum, y=sample_size)) +
   geom_col() +

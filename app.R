@@ -124,7 +124,11 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          selectInput(inputId="locationselect",
                                                      label="Pick a location!",
                                                      choices=unique(reef_tidy$location)
-                                         )
+                                         ),
+                                         radioButtons(inputId = "orientationselect", 
+                                                      label = "Pick an orientation!",
+                                                      choices = c("Vertical"="vertical", "Horizontal"="horizontal", "All"="l")
+                                         ),
                             ),
                             mainPanel("",
                                       plotOutput(outputId="plot2")
@@ -186,7 +190,7 @@ server <- function(input, output){
   #     filter(phylum==c(input$mapit))
   # })
 
-### TAB 1 - plot 
+### TAB 4 - Neighbor plot 
 ## Subset for a phylum
 reef_phylum <- reactive({
   reef_tidy %>%
@@ -207,7 +211,7 @@ output$plot1 <- renderPlot({
     theme_minimal()
    })
 
-### TAB 1 - table 
+### TAB 4 - Neighbor table 
 #Find number of times focal phylum makes an appearance
 reef_focal <- reactive({
   reef_tidy %>%
@@ -255,30 +259,31 @@ output$table1 <- render_gt({
   expr = reef_table()
 })
 
-### TAB 2
+### TAB 3 - Community plot
 reef_summary <- reactive({
   reef_tidy %>%
     filter(binary > "0") %>% #filter out species not present
-    group_by(location,phylum) %>% #group by location, then lat/long
+    group_by(location,phylum, orientation) %>% #group by location, then lat/long, include orientation for horizontal versus vertical surfaces
     summarize(mean_count = mean(value), #get the mean count
               median_count = median(value),
               sd_count = sd(value), #get the s.d. count
               iqr = IQR(value), #get the interquartile range for the count
               sample_size = n()) %>% 
-    filter(location==input$locationselect)
+    filter(location==input$locationselect,
+           str_detect(orientation,pattern=input$orientationselect))
 })
 
 output$plot2 <- renderPlot({
   ggplot(data=reef_summary(), aes(x=phylum, y=sample_size)) +
     geom_col() +
     coord_flip() +
-    ylab("Number of plots") +
+    ylab(paste("Number of plots")) +
     xlab("Phylum") +
     theme_minimal()
 })
 
 ######
-### TAB 3
+### TAB 2 - Abundance map
 #double check this....
 reef_summary2 <- reactive({
   reef_tidy %>%
@@ -310,7 +315,7 @@ output$plot3 <- renderPlot({
 })
 ######
 
-### TAB 4
+### TAB 1 - Diversity map
 reef_index_sf <- reactive({
   reef_index_sf <- reef_vegan %>%
     st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
