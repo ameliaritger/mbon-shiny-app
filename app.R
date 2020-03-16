@@ -75,12 +75,17 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  theme = shinytheme("simplex"),
                  tabPanel("Metadata",
                           h1("What's the deal with this app?"),
-                          p("I'm glad you asked..."),
+                          p("I'm glad you asked...There is a thing about this"),
+                          p("There is another thing about this"),
                             mainPanel("here's the thing...",
-                                      p("Here's another thing..."),
-                                      
-                            )
-                          ),
+                                      p("Here's another thing...")
+                                      ),
+                            mainPanel("here's the SECOND thing...",
+                                      p("Here's another SECOND thing...")
+                                      ),
+                          uiOutput("tab")
+                            ),
+                 ## TAB 1
                  tabPanel("Map - Diversity",
                           h1("Species diversity and richness across the SBC"),
                           p("Calculated from mean count values for each organism"),
@@ -103,6 +108,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             )
                           )
                  ),
+                 ## TAB 2
                  tabPanel("Map - Abundance",
                           h1("Mean abundance of marine organisms across the SBC"),
                           p("Calculated from mean count values for each phylum"),
@@ -115,8 +121,8 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          selectInput(inputId="mapit",
                                                      label="Pick a phylum!",
                                                      choices=unique(reef_tidy$phylum)
-                                         )
-                            ),
+                                                     )
+                                         ),
                             mainPanel("",
                                       leafletOutput("map1"),
                                       p("Plot of mean count values at each site across the SBC"),
@@ -124,6 +130,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             )
                           )
                  ),
+                 ## TAB 3
                  tabPanel("Community",
                           h1("Community composition at each site"),
                           p("Calculated from presence (0 or 1) in replicate plots"),
@@ -135,7 +142,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          ),
                                          radioButtons(inputId = "orientationselect", 
                                                       label = "Pick an orientation!",
-                                                      choices = c("Vertical"="vertical", "Horizontal"="horizontal", "All"="l")
+                                                      choices = c("All"="l", "Vertical"="vertical", "Horizontal"="horizontal")
                                          ),
                             ),
                             mainPanel("",
@@ -143,6 +150,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             )
                           )
                  ),
+                 ## TAB 4
                  tabPanel("Neighbors",
                           h1("Will you be my neighbor? Evaluating how often organisms are found together."),
                           p(""),
@@ -174,6 +182,11 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
 ####################################################################
 # Create server
 server <- function(input, output){
+  url <- a("Google Homepage", href="https://www.google.com/")
+  
+  output$tab <- renderUI({
+    tagList("URL link:", url)
+  })
   
   # reef_select <- reactive({
   #   reef_tidy %>%
@@ -321,6 +334,7 @@ output$plot3 <- renderPlot({
     coord_flip() +
     theme_minimal()
 })
+
 ######
 
 ### TAB 1 - Diversity map
