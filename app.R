@@ -74,17 +74,55 @@ reef_vegan <- reef_location %>%
 ui <- navbarPage("Marine Biodiversity Observation Network",
                  theme = shinytheme("simplex"),
                  tabPanel("Metadata",
-                          h1("What's the deal with this app?"),
-                          p("I'm glad you asked...There is a thing about this"),
-                          p("There is another thing about this"),
-                            mainPanel("here's the thing...",
-                                      p("Here's another thing...")
+                          h2("What's up with this app?"),
+                          h5(p("This app allows users to visualize survey data collected in kelp forest communities in the Santa Barbara Channel (SBC).")),
+                          p("These data were collected from October 2013 until August 2015.",
+                            "Surveyors took photographs of 1m x 1m quadrats every 2m along a 20m transect.",
+                            "Both vertical and horizontal surfaces surveyed.",
+                            "Photographs were later analyzed to identify marine species present at various sites within the SBC."),
+                          h4(uiOutput("website")),
+                          p(img(src = "quadrat.jpg", height="25%", width="25%")),
+                          h3(p("Each tab allows users to explore a different aspect of the dataset.")),
+                          h4("Map - Diversity"),
+                            p("Users may explore species diversity and richness across all 22 sites in the SBC.",
+                                      p(em("Output: Map, plot"))
                                       ),
-                            mainPanel("here's the SECOND thing...",
-                                      p("Here's another SECOND thing...")
-                                      ),
-                          uiOutput("tab")
-                            ),
+                          h4("Map - Abundance"),
+                          p("Users may explore phylum abundances across all 22 sites in the SBC.",
+                                    p(em("Output: Map, plot"))
+                                    ),
+                          h4("Community"),
+                          p("Users may visualize community composition at each of the 22 sites in the SBC. Users are able to compare ecological communities on vertical and horizontal surfaces along the reef.",
+                                    p(em("Output: Plot")),
+                                    ),
+                          h4("Neighbors"),
+                          p("Users may compare organismal co-occurrence within quadrats across all sites. Users may compare plots containing focal and/or neighboring organisms to assess how often the organisms are found together and/or separately.",
+                                    p(em("Output: Plot, table"))
+                                    ),
+                          h3("Not familiar with the phyla of this dataset? Look no further!"),
+                          h4("Annelida"),
+                          p(img(src = "annelida.jpg", height="25%", width="25%")),
+                          h4("Arthropoda"),
+                          p(img(src = "arthropoda.jpg", height="25%", width="25%")),
+                          h4("Chlorophyta"),
+                          p(img(src = "chlorophyta.jpg", height="25%", width="25%")),
+                          h4("Chordata"),
+                          p(img(src = "chordata.jpg", height="25%", width="25%")),
+                          h4("Cnidaria"),
+                          p(img(src = "cnidaria.jpg", height="25%", width="25%")),
+                          h4("Echinodermata"),
+                          p(img(src = "echinodermata.jpg", height="25%", width="25%")),
+                          h4("Ectoprocta"),
+                          p(img(src = "ectoprocta.png", height="25%", width="25%")),
+                          h4("Fish"),
+                          p(img(src = "fish.jpg", height="25%", width="25%")),
+                          h4("Mollusca"),
+                          p(img(src = "mollusca.jpeg", height="25%", width="25%")),
+                          h4("Porifera"),
+                          p(img(src = "porifera.jpg", height="25%", width="25%")),
+                          h4("Rhodophyta"),
+                          p(img(src = "rhodophyta.jpg", height="25%", width="25%"))
+                          ),
                  ## TAB 1
                  tabPanel("Map - Diversity",
                           h1("Species diversity and richness across the SBC"),
@@ -182,10 +220,10 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
 ####################################################################
 # Create server
 server <- function(input, output){
-  url <- a("Google Homepage", href="https://www.google.com/")
-  
-  output$tab <- renderUI({
-    tagList("URL link:", url)
+  url <-  a("MBON website", href="http://sbc.marinebon.org/")
+
+  output$website <- renderUI({
+    tagList("Want to learn more about the Marine Biodiversity Observation Network? Check out the", url)
   })
   
   # reef_select <- reactive({
