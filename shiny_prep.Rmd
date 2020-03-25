@@ -117,7 +117,22 @@ reef_vegan_subset <- reef_vegan %>%
 diversity <- diversity(reef_vegan_subset)
 richness <- specnumber(reef_vegan_subset)
 
-#Add this information to the vegan dataframe
+# #Create a function to generate a continuous color palette
+# Pal <- colorRampPalette(c('red','blue'))
+# #Add a column of color values based on the diversity values
+# reef_vegan %>% 
+#   mutate(color = Pal(10)[as.numeric(cut(reef_vegan$diversity,breaks = 10))])
+# #or, 
+# reef_vegan$color_new <- colorRampPalette(c("blue", "red"))(length(unique(reef_vegan$diversity)))
+# 
+# #Add this information to the vegan dataframe
+# reef_vegan <- reef_location_unique %>% 
+#   add_column(diversity, richness, color=Pal(10)[as.numeric(cut(diversity(reef_vegan_subset),breaks = 10))])
+# # Or
+# reef_vegan <- reef_location_unique %>% 
+#   add_column(diversity, richness) %>% 
+#   mutate(color_brandnew = colorRampPalette(c("yellow", "red"))(length(richness)))
+
 reef_vegan <- reef_location_unique %>% 
   add_column(diversity, richness)
 ```
@@ -247,13 +262,15 @@ reef_summary <- reef_tidy %>%
   filter(binary > "0") %>% #filter out species not present
   st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>% #Make sticky geometries for lat/long
   group_by(location,phylum,orientation) %>% #group by location, then lat/long (and then orientation for vert/horizontal comparisons)
-  summarize(mean_count = mean(value), #get the mean count
+  summarize(`mean abundance` = mean(value), #get the mean count
             median_count = median(value),
             sd_count = sd(value), #get the s.d. count
             iqr = IQR(value), #get the interquartile range for the count
             sample_size = n()) %>% 
   filter(location=="Carp Reef",
          str_detect(orientation,pattern="l")) #add filter to separate vertical from horizontal
+
+library(paletteer)
 
 ggplot(data=reef_summary, aes(x=phylum, y=sample_size)) +
   geom_col() +
@@ -284,7 +301,7 @@ reef_sf <- st_as_sf(reef_vegan, coords=geometry, crs=4326) #make data sf geometr
 reef_map <- tm_basemap("Esri.WorldImagery") +
   tm_shape(reef_sf) + #tells tmap where we're looking (i.e. california)
   #tm_dots(labels="value", col="purple", size=0.5) #tells tmap to plot points on map labelled with id associated
-  tm_symbols(id="location", col = "purple", size = "diversity", scale = 3) #view species diversity or richness (BASED ON INPUT)
+  tm_symbols(id="location", col = "diversity", size = "diversity", scale = 3) #view species diversity or richness (BASED ON INPUT)
 
 tmap_mode("view") #view = interactive
 reef_map
