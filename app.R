@@ -221,7 +221,8 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                           h1("Tree tree"),
                           p("Some text here"),
                           sidebarLayout(
-                            sidebarPanel("",
+                            sidebarPanel("Inspired by this Shiny app:
+                                         https://abenedetti.shinyapps.io/bioNPS/",
                                          selectInput(inputId="locationSelectComboTree",
                                                      label="Pick a location!",
                                                      choices=unique(reef_tidy$location)
