@@ -68,7 +68,7 @@ diversity <- diversity(reef_vegan_subset)
 richness <- specnumber(reef_vegan_subset)
 
 #Combine all of this information - location, lat/long, diversity/richness
-reef_vegan <- reef_location %>% 
+reef_vegan <- reef_location_unique %>% 
   add_column(diversity, richness)
 
 ####################################################################
@@ -131,10 +131,6 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                           p("Calculated from mean count values for each organism"),
                           sidebarLayout(
                             sidebarPanel("",
-                                         radioButtons(inputId = "pickanothercolor", 
-                                                      label = "Pick a color!",
-                                                      choices = c("RED!!"="red", "PURPLE!!"="purple", "ORAAAANGE!!!"="orange", "YELLOW!!"="yellow", "GREEEEEN!!"="green")
-                                         ),
                                          radioButtons(inputId="mapindex",
                                                       label="Pick an output!",
                                                       choices=c("diversity", "richness")
@@ -154,10 +150,6 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                           p("Calculated from mean count values for each phylum"),
                           sidebarLayout(
                             sidebarPanel("",
-                                         radioButtons(inputId = "pickacolor", 
-                                                      label = "Pick a color!",
-                                                      choices = c("RED!!"="red", "PURPLE!!"="purple", "ORAAAANGE!!!"="orange", "YELLOW!!"="yellow", "GREEEEEN!!"="green")
-                                         ),
                                          selectInput(inputId="mapit",
                                                      label="Pick a phylum!",
                                                      choices=unique(reef_tidy$phylum)
@@ -373,7 +365,7 @@ reef_summary2 <- reactive({
     filter(binary > "0") %>% #filter out species not present
     st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>%  #create sticky geometry for lat/long
     group_by(location,phylum) %>% #group by location, then lat/long
-    summarize(mean_count = mean(value), #get the mean count
+    summarize(`mean abundance` = mean(value), #get the mean count
               sd_count = sd(value), #get the s.d. count
               sample_size = n()) %>%  #get the sample size
     filter(phylum==c(input$mapit))
@@ -382,17 +374,17 @@ reef_summary2 <- reactive({
 output$map1 <- renderLeaflet({
   reef_map1 <- tm_basemap("Esri.WorldImagery") +
     tm_shape(reef_summary2()) +
-    tm_symbols(id="location", col = input$pickacolor, size ="mean_count", scale=2) +
+    tm_symbols(id="location", col = "mean abundance", size ="mean abundance", scale=2) +
     tm_facets(by = "phylum")
   
   tmap_leaflet(reef_map1)
 })
 
 output$plot3 <- renderPlot({
-  ggplot(reef_summary2(), aes(x=location, y=mean_count)) +
+  ggplot(reef_summary2(), aes(x=location, y=`mean abundance`)) +
     geom_col() +
     xlab("Location") +
-    ylab("Mean count value") +
+    ylab("Mean abundance") +
     coord_flip() +
     theme_minimal()
 })
@@ -400,15 +392,16 @@ output$plot3 <- renderPlot({
 ######
 
 ### TAB 1 - Diversity map
+
 reef_index_sf <- reactive({
-  reef_index_sf <- reef_vegan %>%
+  reef_vegan %>% 
     st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
 })
 
 output$map2 <- renderLeaflet({
   reef_map2 <- tm_basemap("Esri.WorldImagery") +
     tm_shape(reef_index_sf()) +
-    tm_symbols(id="location", col = input$pickanothercolor, size = input$mapindex, scale=2)
+    tm_symbols(id="location", col = input$mapindex, size = input$mapindex, scale=2)
   
   tmap_leaflet(reef_map2)
 })
