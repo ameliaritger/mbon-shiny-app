@@ -9,6 +9,8 @@ library(tmap)
 library(vegan)
 library(gt)
 library(leaflet)
+library(collapsibleTree)
+library(shinycssloaders)
 
 ####################################################################
 ## Read in data
@@ -213,7 +215,28 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                       gt_output(outputId="table1")
                                       )
                             )
+                          ),
+                ## TAB 5
+                tabPanel("Tree!",
+                          h1("Tree tree"),
+                          p("Some text here"),
+                          sidebarLayout(
+                            sidebarPanel("",
+                                         selectInput(inputId="locationSelectComboTree",
+                                                     label="Pick a location!",
+                                                     choices=unique(reef_tidy$location)
+                                         ),
+                                         selectInput(inputId="phylumSelectComboTree",
+                                                     label="Pick a phylum!",
+                                                     choices=unique(reef_tidy$phylum)
+                                         ),
+                            ),
+                            mainPanel("",
+                                      collapsibleTreeOutput('tree', height='700px') %>%
+                                        withSpinner(color = "green")
+                            )
                           )
+                 )
 )
                  
 
@@ -397,6 +420,21 @@ output$plot4 <- renderPlot({
     coord_flip() +
     theme_minimal()
 })
+
+### TAB 5 - Species tree
+speciesTree <- reactive(reef_tidy[reef_tidy$location==input$locationSelectComboTree & reef_tidy$phylum==input$phylumSelectComboTree,
+                                  c("phylum", "grouped_genus", "grouped_species")]) #subset data for selected location and phylum
+
+output$tree <- renderCollapsibleTree(
+  collapsibleTree(
+    speciesTree(),
+    root = input$phylumSelectComboTree,
+    attribute = "grouped_species",
+    hierarchy = c("grouped_genus","grouped_species"),
+    fill = "Green",
+    zoomable = FALSE
+  )
+)
 
 }
 
