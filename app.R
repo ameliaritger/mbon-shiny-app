@@ -374,7 +374,8 @@ reef_summary2 <- reactive({
 output$map1 <- renderLeaflet({
   reef_map1 <- tm_basemap("Esri.WorldImagery") +
     tm_shape(reef_summary2()) +
-    tm_symbols(id="location", col = "mean abundance", size ="mean abundance", scale=2) +
+    tm_symbols(id="location", col = "mean abundance", size ="mean abundance", scale=2, 
+               palette = "viridis", contrast = c(0.27, 1)) +
     tm_facets(by = "phylum")
   
   tmap_leaflet(reef_map1)
@@ -382,7 +383,8 @@ output$map1 <- renderLeaflet({
 
 output$plot3 <- renderPlot({
   ggplot(reef_summary2(), aes(x=location, y=`mean abundance`)) +
-    geom_col() +
+    geom_col(aes(fill=`mean abundance`)) +
+    scale_fill_viridis_c(begin = 0.27, end = 1) +
     xlab("Location") +
     ylab("Mean abundance") +
     coord_flip() +
@@ -401,14 +403,16 @@ reef_index_sf <- reactive({
 output$map2 <- renderLeaflet({
   reef_map2 <- tm_basemap("Esri.WorldImagery") +
     tm_shape(reef_index_sf()) +
-    tm_symbols(id="location", col = input$mapindex, size = input$mapindex, scale=2)
+    tm_symbols(id="location", col = input$mapindex, size = input$mapindex, scale=2, 
+               palette = "viridis", contrast = c(0.27, 1))
   
   tmap_leaflet(reef_map2)
 })
 
 output$plot4 <- renderPlot({
   ggplot(reef_index_sf(), aes(x=location, y=!!as.name(input$mapindex))) +
-    geom_col() +
+    geom_col(aes(fill=!!as.name(input$mapindex))) +
+    scale_fill_viridis_c(begin = 0.27, end = 1) +
     xlab("Location") +
     ylab(paste(input$mapindex)) +
     coord_flip() +
