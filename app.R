@@ -234,8 +234,8 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                           onInitialize = I('function() { this.setValue(""); }')
                                                           )
                                            ),
-                                         actionLink("urlpicker","Submit and then"),
-                                         uiOutput("url", style = "font-size:30px"),
+                                         #actionLink("urlpicker","Submit and then"),
+                                         uiOutput("url", style = "font-size:20px")
                                          #selectizeInput("searchaphylum", label = "search it!", choices=unique(reef_tidy$grouped_genus), selected = NULL, multiple = FALSE,options = NULL)
                                          # conditionalPanel(
                                          #   condition = "input.searchaphylum = NA",
@@ -243,7 +243,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          #   )
                             ),
                             mainPanel("",
-                                      collapsibleTreeOutput('tree', height='700px') %>%
+                                      collapsibleTreeOutput('tree', height='600px') %>%
                                         withSpinner(color = "blue")
                             )
                           )
@@ -447,13 +447,13 @@ output$tree <- renderCollapsibleTree(
     root = input$phylumSelectComboTree,
     attribute = "grouped_species",
     hierarchy = c("grouped_genus","grouped_species"),
-    fill = "Green",
+    fill = "Blue",
     zoomable = FALSE
   )
 )
 
 #create reactive URL to search for organisms
-observeEvent(input$urlpicker,{
+observeEvent(input$searchaphylum,{
   output$url <-renderUI(a(href=paste0('https://www.google.com/search?q=', input$searchaphylum),"Google it!",target="_blank"))
 })
 
