@@ -223,17 +223,28 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                      label="Pick a phylum!",
                                                      choices=unique(reef_tidy$phylum)
                                          ),
-                                         p("Not sure what an organism is?"),
-                                         textInput("searchaphylum", label = "Ask the internet:", value = "", placeholder = "type phylum, genus, or species name"),
-                                         actionButton("urlpicker","Submit"),
-                                         conditionalPanel(
-                                           condition = "input.urlpicker > 0",
-                                           uiOutput("url")
-                                           )
+                                         h2("Not sure what an organism is?"),
+                                         #textInput("searchaphylum", label = "Ask the internet:", value = "", placeholder = "type phylum, genus, or species name"),
+                                         selectizeInput(
+                                           "searchaphylum", 
+                                           label = "ask da web", 
+                                           choices = sort(c(unique(reef_tidy$grouped_genus), unique(reef_tidy$grouped_species))), 
+                                           multiple = FALSE, 
+                                           options = list(placeholder='Enter genus, or species name',
+                                                          onInitialize = I('function() { this.setValue(""); }')
+                                                          )
+                                           ),
+                                         actionLink("urlpicker","Submit and then"),
+                                         uiOutput("url", style = "font-size:30px"),
+                                         #selectizeInput("searchaphylum", label = "search it!", choices=unique(reef_tidy$grouped_genus), selected = NULL, multiple = FALSE,options = NULL)
+                                         # conditionalPanel(
+                                         #   condition = "input.searchaphylum = NA",
+                                         #   uiOutput("url", style = "font-size:30px")
+                                         #   )
                             ),
                             mainPanel("",
                                       collapsibleTreeOutput('tree', height='700px') %>%
-                                        withSpinner(color = "green")
+                                        withSpinner(color = "blue")
                             )
                           )
                  )
@@ -441,6 +452,7 @@ output$tree <- renderCollapsibleTree(
   )
 )
 
+#create reactive URL to search for organisms
 observeEvent(input$urlpicker,{
   output$url <-renderUI(a(href=paste0('https://www.google.com/search?q=', input$searchaphylum),"Google it!",target="_blank"))
 })
