@@ -215,27 +215,22 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                           sidebarLayout(
                             sidebarPanel("Inspired by this Shiny app:
                                          https://abenedetti.shinyapps.io/bioNPS/",
-                                         selectInput(inputId="locationSelectComboTree",
-                                                     label="Pick a location!",
-                                                     choices=unique(reef_tidy$location)
-                                         ),
                                          selectInput(inputId="phylumSelectComboTree",
                                                      label="Pick a phylum!",
                                                      choices=unique(reef_tidy$phylum)
                                          ),
                                          h2("Not sure what an organism is?"),
                                          #textInput("searchaphylum", label = "Ask the internet:", value = "", placeholder = "type phylum, genus, or species name"),
-                                         selectizeInput(
-                                           "searchaphylum", 
-                                           label = "ask da web", 
-                                           choices = sort(c(unique(reef_tidy$grouped_genus), unique(reef_tidy$grouped_species))), 
-                                           multiple = FALSE, 
-                                           options = list(placeholder='Enter genus, or species name',
-                                                          onInitialize = I('function() { this.setValue(""); }')
+                                         selectizeInput("searchaphylum", 
+                                                        label = "ask da web", 
+                                                        choices = sort(c(unique(reef_tidy$grouped_genus), unique(reef_tidy$grouped_species))), 
+                                                        multiple = FALSE,
+                                                        options = list(placeholder='Enter genus, or species name',
+                                                                       onInitialize = I('function() { this.setValue(""); }')
                                                           )
                                            ),
                                          #actionLink("urlpicker","Submit and then"),
-                                         uiOutput("url", style = "font-size:20px")
+                                         uiOutput("url", style = "font-size:15px")
                                          #selectizeInput("searchaphylum", label = "search it!", choices=unique(reef_tidy$grouped_genus), selected = NULL, multiple = FALSE,options = NULL)
                                          # conditionalPanel(
                                          #   condition = "input.searchaphylum = NA",
@@ -438,7 +433,7 @@ output$plot4 <- renderPlot({
 })
 
 ### TAB 5 - Species tree
-speciesTree <- reactive(reef_tidy[reef_tidy$location==input$locationSelectComboTree & reef_tidy$phylum==input$phylumSelectComboTree,
+speciesTree <- reactive(reef_tidy[reef_tidy$phylum==input$phylumSelectComboTree,
                                   c("phylum", "grouped_genus", "grouped_species")]) #subset data for selected location and phylum
 
 output$tree <- renderCollapsibleTree(
@@ -454,7 +449,7 @@ output$tree <- renderCollapsibleTree(
 
 #create reactive URL to search for organisms
 observeEvent(input$searchaphylum,{
-  output$url <-renderUI(a(href=paste0('https://www.google.com/search?q=', input$searchaphylum),"Google it!",target="_blank"))
+  output$url <-renderUI(a(href=paste0('https://www.google.com/search?q=', input$searchaphylum),"and then Google it!",target="_blank"))
 })
 
 }
