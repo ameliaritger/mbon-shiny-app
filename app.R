@@ -68,7 +68,7 @@ diversity <- diversity(reef_vegan_subset)
 richness <- specnumber(reef_vegan_subset)
 
 #Combine all of this information - location, lat/long, diversity/richness
-reef_vegan <- reef_location_unique %>% 
+reef_vegan <- reef_location %>% 
   add_column(diversity, richness)
 
 ####################################################################
