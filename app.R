@@ -223,6 +223,13 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                      label="Pick a phylum!",
                                                      choices=unique(reef_tidy$phylum)
                                          ),
+                                         p("Not sure what an organism is?"),
+                                         textInput("searchaphylum", label = "Ask the internet:", value = "", placeholder = "type phylum, genus, or species name"),
+                                         actionButton("urlpicker","Submit"),
+                                         conditionalPanel(
+                                           condition = "input.urlpicker > 0",
+                                           uiOutput("url")
+                                           )
                             ),
                             mainPanel("",
                                       collapsibleTreeOutput('tree', height='700px') %>%
@@ -433,6 +440,10 @@ output$tree <- renderCollapsibleTree(
     zoomable = FALSE
   )
 )
+
+observeEvent(input$urlpicker,{
+  output$url <-renderUI(a(href=paste0('https://www.google.com/search?q=', input$searchaphylum),"Google it!",target="_blank"))
+})
 
 }
 
