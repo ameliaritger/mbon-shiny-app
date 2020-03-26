@@ -45,7 +45,8 @@ reef_tidy <- reef_tidy %>%
 reef_tidy <- reef_tidy %>% 
   mutate(grouped_species = ifelse(str_detect(species, pattern = " worm"), "Other worms", ifelse(str_detect(species, pattern = "phoronid"), "Other worms", ifelse(str_detect(species, pattern = "tubeworm"), "Tubeworms", ifelse(str_detect(species, pattern = "algae"), "Other Algaes", ifelse(str_detect(species, pattern = "Filamentous"), "Other Algaes", ifelse(str_detect(species, pattern = "turf"), "Other Algaes", ifelse(str_detect(species, pattern = "blade"), "Other Algaes", ifelse(str_detect(species, pattern = "tunicate"), "Other Tunicates", ifelse(str_detect(species, pattern = "anemone"), "Other anemones", ifelse(str_detect(species, pattern = "bryozoan"), "Other bryozoans", ifelse(str_detect(species, pattern = "White fan"), "Other bryozoans", ifelse(str_detect(species, pattern = "sponge"), "Other Sponges", ifelse(str_detect(species, pattern = "Orange encrusting"), "Other Sponges", ifelse(str_detect(species, pattern = "Haliclona sp"), "Other Sponges", ifelse(str_detect(species, pattern = "zigzag"), "Other Hydroids", species)))))))))))))))) %>%
   mutate(grouped_genus = ifelse(str_detect(grouped_species, pattern = "Other"), grouped_species, ifelse(str_detect(grouped_species, pattern = "orange"), grouped_species, ifelse(str_detect(grouped_species, pattern = "White"), grouped_species, ifelse(str_detect(grouped_species, pattern = "encrusting"), grouped_species, ifelse(str_detect(grouped_species, pattern = "zigzag"), grouped_species, ifelse(str_detect(grouped_species, pattern = "solitary"), grouped_species, ifelse(str_detect(grouped_species, pattern = "sectioned"), grouped_species, genus)))))))) %>% #do the same for genus
-  mutate(grouped_genus = str_to_title(grouped_genus)) #capitalize first word of genus
+  mutate(grouped_genus = str_to_title(grouped_genus)) %>% #capitalize first word of genus
+  mutate(kingdom = "animalia")
 
 #Create separate dataframe of just latitude, longitude, and locations (use for later plotting species diversity/richness at each location)
 reef_location <- reef_tidy %>% 
@@ -100,7 +101,8 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                           h4("Neighbors"),
                           p("Users may compare organismal co-occurrence within quadrats across all sites. Users may compare plots containing focal and/or neighboring organisms to assess how often the organisms are found together and/or separately.",
                                     p(em("Output: Plot, table"))
-                                    )),
+                                    ),
+                          p(img(src = "mbon.png", height="25%", width="25%"))),
                  tabPanel("About the Phyla",
                           h3("Not familiar with the phyla of this dataset? Look no further!"),
                           h4("Annelida - worms"),
@@ -211,13 +213,9 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                 ## TAB 5
                 tabPanel("Species Tree",
                          h1("Hierarchical tree of the species found in this dataset"),
-                         p(""),
+                         p(em("Please wait, this page may take a few minutes to load")),
                           sidebarLayout(
                             sidebarPanel("",
-                                         selectInput(inputId="phylumSelectComboTree",
-                                                     label="Pick a phylum!",
-                                                     choices=unique(reef_tidy$phylum)
-                                         ),
                                          selectizeInput("searchaphylum", 
                                                         label = "Want to learn more about an organism?", 
                                                         choices = sort(c(unique(reef_tidy$grouped_genus), unique(reef_tidy$grouped_species))), 
@@ -228,7 +226,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                            ),
                                          uiOutput("url", style = "font-size:20px; text-align:center")
                             ),
-                            mainPanel(em("Please wait, this may take a few seconds to load"),
+                            mainPanel("",
                                       collapsibleTreeOutput('tree', height='600px') %>%
                                         withSpinner(color = "#008b8b"),
                                        h6(p(uiOutput("nps_website"))
@@ -432,15 +430,14 @@ output$nps_website <- renderUI({
   tagList("With inspiration from the Biodiversity in National Parks", nps_url)
 })
 
-speciesTree <- reactive(reef_tidy[reef_tidy$phylum==input$phylumSelectComboTree,
-                                  c("phylum", "grouped_genus", "grouped_species")]) #subset data for selected location and phylum
+speciesTree <- reactive(reef_tidy[c("kingdom", "phylum", "grouped_genus", "grouped_species")])
 
 output$tree <- renderCollapsibleTree(
   collapsibleTree(
     speciesTree(),
-    root = input$phylumSelectComboTree,
+    root = "Animalia",
     attribute = "grouped_species",
-    hierarchy = c("grouped_genus","grouped_species"),
+    hierarchy = c("phylum", "grouped_genus","grouped_species"),
     fill = "#008b8b",
     zoomable = FALSE
   )
