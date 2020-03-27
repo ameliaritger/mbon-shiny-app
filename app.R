@@ -110,7 +110,12 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                           h1("Not familiar with the critters of this dataset? Look no further!"),
                           p(em("Please be patient, this page may take a few minutes to load")),
                           sidebarLayout(
-                            sidebarPanel(h4(p("Curious what an organism looks like?")),
+                            sidebarPanel("",
+                                         selectInput(inputId="phylumSelectComboTree",
+                                                     label="Pick a phylum!",
+                                                     choices=unique(reef_tidy$phylum)
+                                         ),
+                                         h4(p("Curious what an organism looks like?")),
                                          selectInput(inputId="photoaphylum",
                                                      label="Pick a phylum!",
                                                      choices=unique(reef_tidy$phylum)
@@ -435,14 +440,15 @@ output$nps_website <- renderUI({
 })
 
 #create species tree
-speciesTree <- reactive(reef_tidy[c("kingdom", "phylum", "grouped_genus", "grouped_species")])
+speciesTree <- reactive(reef_tidy[reef_tidy$phylum==input$phylumSelectComboTree,
+                                  c("phylum", "grouped_genus", "grouped_species")])
 
 output$tree <- renderCollapsibleTree(
   collapsibleTree(
     speciesTree(),
-    root = "Animalia",
+    root = input$phylumSelectComboTree,
     attribute = "grouped_species",
-    hierarchy = c("phylum", "grouped_genus","grouped_species"),
+    hierarchy = c("grouped_genus","grouped_species"),
     fill = "#008b8b",
     zoomable = FALSE
   )
