@@ -45,8 +45,9 @@ reef_tidy <- reef_tidy %>%
 reef_tidy <- reef_tidy %>% 
   mutate(grouped_species = ifelse(str_detect(species, pattern = " worm"), "Other worms", ifelse(str_detect(species, pattern = "phoronid"), "Other worms", ifelse(str_detect(species, pattern = "tubeworm"), "Tubeworms", ifelse(str_detect(species, pattern = "algae"), "Other Algaes", ifelse(str_detect(species, pattern = "Filamentous"), "Other Algaes", ifelse(str_detect(species, pattern = "turf"), "Other Algaes", ifelse(str_detect(species, pattern = "blade"), "Other Algaes", ifelse(str_detect(species, pattern = "tunicate"), "Other Tunicates", ifelse(str_detect(species, pattern = "anemone"), "Other anemones", ifelse(str_detect(species, pattern = "bryozoan"), "Other bryozoans", ifelse(str_detect(species, pattern = "White fan"), "Other bryozoans", ifelse(str_detect(species, pattern = "sponge"), "Other Sponges", ifelse(str_detect(species, pattern = "Orange encrusting"), "Other Sponges", ifelse(str_detect(species, pattern = "Haliclona sp"), "Other Sponges", ifelse(str_detect(species, pattern = "zigzag"), "Other Hydroids", species)))))))))))))))) %>%
   mutate(grouped_genus = ifelse(str_detect(grouped_species, pattern = "Other"), grouped_species, ifelse(str_detect(grouped_species, pattern = "orange"), grouped_species, ifelse(str_detect(grouped_species, pattern = "White"), grouped_species, ifelse(str_detect(grouped_species, pattern = "encrusting"), grouped_species, ifelse(str_detect(grouped_species, pattern = "zigzag"), grouped_species, ifelse(str_detect(grouped_species, pattern = "solitary"), grouped_species, ifelse(str_detect(grouped_species, pattern = "sectioned"), grouped_species, genus)))))))) %>% #do the same for genus
-  mutate(grouped_genus = str_to_title(grouped_genus)) %>% #capitalize first word of genus
-  mutate(kingdom = "animalia")
+  mutate(grouped_genus = str_to_title(grouped_genus)) %>%  #capitalize genus name
+  mutate(phylum = str_to_title(phylum)) %>%  #capitalize phylum name
+  mutate(kingdom = "Animalia")
 
 #Create separate dataframe of just latitude, longitude, and locations (use for later plotting species diversity/richness at each location)
 reef_location <- reef_tidy %>% 
@@ -65,12 +66,12 @@ reef_vegan_subset <- reef_vegan %>%
   pivot_wider(names_from=grouped_species, values_from=mean_count) %>% 
   select(`Abietinaria spp`:`Zonaria farlowii`)
 
-diversity <- diversity(reef_vegan_subset)
-richness <- specnumber(reef_vegan_subset)
+Diversity <- diversity(reef_vegan_subset)
+Richness <- specnumber(reef_vegan_subset)
 
 #Combine all of this information - location, lat/long, diversity/richness
 reef_vegan <- reef_location %>% 
-  add_column(diversity, richness)
+  add_column(Diversity, Richness)
 
 ####################################################################
 #Create user interface
@@ -135,26 +136,33 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  ),
                  
                  ## TAB
-                 tabPanel("Map - Diversity",
+                 tabPanel("Diversity",
                           h1("Species diversity and richness across the SBC"),
                           p("Calculated from mean count values for each organism"),
                           sidebarLayout(
                             sidebarPanel("",
                                          radioButtons(inputId="mapindex",
                                                       label="Pick an output!",
-                                                      choices=c("diversity", "richness")
-                                         )
+                                                      choices=c("Richness","Diversity")
+                                         ),
+                                         br(),
+                                         plotOutput(outputId="plot4"),
+                                         br(),
+                                         h5(p(em("How is each term calculated?"))),
+                                         h6(p(strong("Richness:"))),
+                                         h6(p("The number of species within a community")),
+                                         h6(p(strong("Diversity:"))),
+                                         h6(p("The number of species within a community (richness) and the relative abundance of each species (evenness)"))
                             ),
-                            mainPanel("",
+                            mainPanel(h4(p("Map of species diversity or richness at each site across the SBC")),
                                       leafletOutput("map2"),
-                                      "",
-                                      p("Plot of species diversity or richness at each site across the SBC"),
-                                      plotOutput(outputId="plot4")
+                                      br(),
+                                      #h4(p("Plot of species diversity or richness at each site across the SBC")),
                             )
                           )
                  ),
                  ## TAB 
-                 tabPanel("Map - Abundance",
+                 tabPanel("Abundance",
                           h1("Mean abundance of marine organisms across the SBC"),
                           p("Calculated from mean count values for each phylum"),
                           sidebarLayout(
@@ -162,11 +170,13 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          selectInput(inputId="mapit",
                                                      label="Pick a phylum!",
                                                      choices=unique(reef_tidy$phylum)
-                                                     )
+                                                     ),
+                                         p(strong("ADD ~Or, pick a genus~ HERE"))
                                          ),
-                            mainPanel("",
+                            mainPanel(h4(p("Map of organism abundance at each site across the SBC")),
                                       leafletOutput("map1"),
-                                      p("Plot of mean count values at each site across the SBC"),
+                                      br(),
+                                      h4(p("Plot of organism abundance at each site across the SBC")),
                                       plotOutput(outputId="plot3")
                             )
                           )
@@ -187,7 +197,9 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          ),
                             ),
                             mainPanel("",
-                                      plotOutput(outputId="plot2")
+                                      plotOutput(outputId="plot2"),                                         
+                                      p(strong("APPLY COLOR SCHEME TO PHYLUM NAMES"))
+
                             )
                           )
                  ),
@@ -206,13 +218,15 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                      choices=unique(reef_tidy$phylum),
                                                      options = list(`actions-box`=TRUE,
                                                                     `selected-text-format` = "count > 3"),
-                                                     multiple = TRUE)
+                                                     multiple = TRUE),
+                                         p(strong("ADD ~Or, pick a genus~ HERE?")),
+                                         p(strong("& APPLY COLOR SCHEME TO PHYLUM NAMES"))
                                          ),
                             mainPanel("",
                                       p(""),
                                       plotOutput(outputId="plot1"),
-                                      "",
-                                      p(""),
+                                      br(),
+                                      br(),
                                       gt_output(outputId="table1")
                                       )
                             )
@@ -266,7 +280,7 @@ reef_phylum <- reactive({
 
 output$plot1 <- renderPlot({
   ggplot(reef_phylum(), aes(x=fct_rev(phylum))) +
-    geom_bar() +
+    geom_bar(fill = "#008b8b") +
     xlab("Phylum") +
     ylab(paste("Abundance in plots also containing",input$pickaphylum)) +
     coord_flip() +
@@ -337,7 +351,7 @@ reef_summary <- reactive({
 
 output$plot2 <- renderPlot({
   ggplot(data=reef_summary(), aes(x=phylum, y=sample_size)) +
-    geom_col() +
+    geom_col(fill = "#008b8b") +
     coord_flip() +
     ylab(paste("Number of plots")) +
     xlab("Phylum") +
