@@ -213,9 +213,14 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                 ## TAB 5
                 tabPanel("Species Tree",
                          h1("Hierarchical tree of the species found in this dataset"),
-                         p(em("Please wait, this page may take a few minutes to load")),
+                         p(em("Please be patient, this page may take a few minutes to load")),
                           sidebarLayout(
-                            sidebarPanel("",
+                            sidebarPanel(h4(p("Curious what an organism looks like?")),
+                                         selectInput(inputId="photoaphylum",
+                                                     label="Pick a phylum!",
+                                                     choices=unique(reef_tidy$phylum)
+                                         ),
+                                         imageOutput("phylum_image"),
                                          selectizeInput("searchaphylum", 
                                                         label = "Want to learn more about an organism?", 
                                                         choices = sort(c(unique(reef_tidy$grouped_genus), unique(reef_tidy$grouped_species))), 
@@ -424,12 +429,20 @@ output$plot4 <- renderPlot({
 })
 
 ### TAB 5 - Species tree
+#produce image
+output$phylum_image <- renderImage({
+  imgs <- paste("www/",input$photoaphylum,".jpg",sep="")
+  list(src = imgs, alt = "alternate text", height = "50%")
+}, deleteFile = FALSE)
+
+#credit where credit is due
 nps_url <-  a("Shiny app", href="https://abenedetti.shinyapps.io/bioNPS/")
 
 output$nps_website <- renderUI({
   tagList("With inspiration from the Biodiversity in National Parks", nps_url)
 })
 
+#create species tree
 speciesTree <- reactive(reef_tidy[c("kingdom", "phylum", "grouped_genus", "grouped_species")])
 
 output$tree <- renderCollapsibleTree(
