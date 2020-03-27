@@ -76,6 +76,7 @@ reef_vegan <- reef_location %>%
 #Create user interface
 ui <- navbarPage("Marine Biodiversity Observation Network",
                  theme = shinytheme("simplex"),
+                 ## TAB
                  tabPanel("About the App",
                           h2("What's up with this app?"),
                           h5(p("This app allows users to visualize survey data collected in kelp forest communities in the Santa Barbara Channel (SBC).")),
@@ -103,31 +104,37 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                     p(em("Output: Plot, table"))
                                     ),
                           p(img(src = "mbon.png", height="25%", width="25%"))),
-                 tabPanel("About the Phyla",
-                          h3("Not familiar with the phyla of this dataset? Look no further!"),
-                          h4("Annelida - worms"),
-                          p(img(src = "annelida.jpg", height="25%", width="25%")),
-                          h4("Arthropoda - lobsters, barnacles"),
-                          p(img(src = "arthropoda.jpg", height="25%", width="25%")),
-                          h4("Chlorophyta - green algae"),
-                          p(img(src = "chlorophyta.jpg", height="25%", width="25%")),
-                          h4("Chordata - tunicates"),
-                          p(img(src = "chordata.jpg", height="25%", width="25%")),
-                          h4("Cnidaria - sea anemones, corals, jellies"),
-                          p(img(src = "cnidaria.jpg", height="25%", width="25%")),
-                          h4("Echinodermata - sea stars, brittle stars, sea cucumbers, sea urchins"),
-                          p(img(src = "echinodermata.jpg", height="25%", width="25%")),
-                          h4("Ectoprocta - bryozoans"),
-                          p(img(src = "ectoprocta.png", height="25%", width="25%")),
-                          h4("Fish - fish"),
-                          p(img(src = "fish.jpg", height="25%", width="25%")),
-                          h4("Mollusca - mussels, scallops, snails, clams"),
-                          p(img(src = "mollusca.jpeg", height="25%", width="25%")),
-                          h4("Porifera - sponges"),
-                          p(img(src = "porifera.jpg", height="25%", width="25%")),
-                          h4("Rhodophyta - red algae"),
-                          p(img(src = "rhodophyta.jpg", height="25%", width="25%"))),
-                 ## TAB 1
+                 ## TAB
+                 tabPanel("About the critters",
+                          h1("Not familiar with the critters of this dataset? Look no further!"),
+                          p(em("Please be patient, this page may take a few minutes to load")),
+                          sidebarLayout(
+                            sidebarPanel(h4(p("Curious what an organism looks like?")),
+                                         selectInput(inputId="photoaphylum",
+                                                     label="Pick a phylum!",
+                                                     choices=unique(reef_tidy$phylum)
+                                         ),
+                                         imageOutput("phylum_image"),
+                                         selectizeInput("searchaphylum", 
+                                                        label = "Want to learn more about an organism?", 
+                                                        choices = sort(c(unique(reef_tidy$grouped_genus), unique(reef_tidy$grouped_species))), 
+                                                        multiple = FALSE,
+                                                        options = list(placeholder='Enter genus or species name',
+                                                                       onInitialize = I('function() { this.setValue(""); }')
+                                                        )
+                                         ),
+                                         uiOutput("url", style = "font-size:20px; text-align:center")
+                            ),
+                            mainPanel(h3(p("Hierarchical tree of the species found in this dataset")),
+                                      collapsibleTreeOutput('tree', height='600px') %>%
+                                        withSpinner(color = "#008b8b"),
+                                      h6(p(uiOutput("nps_website"))
+                                      )
+                            )
+                          )
+                 ),
+                 
+                 ## TAB
                  tabPanel("Map - Diversity",
                           h1("Species diversity and richness across the SBC"),
                           p("Calculated from mean count values for each organism"),
@@ -146,7 +153,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             )
                           )
                  ),
-                 ## TAB 2
+                 ## TAB 
                  tabPanel("Map - Abundance",
                           h1("Mean abundance of marine organisms across the SBC"),
                           p("Calculated from mean count values for each phylum"),
@@ -164,7 +171,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             )
                           )
                  ),
-                 ## TAB 3
+                 ## TAB 
                  tabPanel("Community",
                           h1("Community composition at each site"),
                           p("Calculated from presence (0 or 1) in replicate plots"),
@@ -184,7 +191,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             )
                           )
                  ),
-                 ## TAB 4
+                 ## TAB 
                  tabPanel("Neighbors",
                           h1("Will you be my neighbor? Evaluating how often organisms are found together."),
                           p(""),
@@ -209,36 +216,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                       gt_output(outputId="table1")
                                       )
                             )
-                          ),
-                ## TAB 5
-                tabPanel("Species Tree",
-                         h1("Hierarchical tree of the species found in this dataset"),
-                         p(em("Please be patient, this page may take a few minutes to load")),
-                          sidebarLayout(
-                            sidebarPanel(h4(p("Curious what an organism looks like?")),
-                                         selectInput(inputId="photoaphylum",
-                                                     label="Pick a phylum!",
-                                                     choices=unique(reef_tidy$phylum)
-                                         ),
-                                         imageOutput("phylum_image"),
-                                         selectizeInput("searchaphylum", 
-                                                        label = "Want to learn more about an organism?", 
-                                                        choices = sort(c(unique(reef_tidy$grouped_genus), unique(reef_tidy$grouped_species))), 
-                                                        multiple = FALSE,
-                                                        options = list(placeholder='Enter genus or species name',
-                                                                       onInitialize = I('function() { this.setValue(""); }')
-                                                          )
-                                           ),
-                                         uiOutput("url", style = "font-size:20px; text-align:center")
-                            ),
-                            mainPanel("",
-                                      collapsibleTreeOutput('tree', height='600px') %>%
-                                        withSpinner(color = "#008b8b"),
-                                       h6(p(uiOutput("nps_website"))
-                                        )
-                                      )
-                            )
-                 )
+                          )
 )
                  
 
