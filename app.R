@@ -430,7 +430,7 @@ output$phylum_image <- renderImage({
 
 #create reactive URL to search for organisms
 observeEvent(input$searchaphylum,{
-  output$url <-renderUI(a(href=paste0('https://www.google.com/search?q=', input$searchaphylum),"Google it!",target="_blank"))
+  output$url <-renderUI(a(href=paste0('https://www.google.com/search?q=', input$searchaphylum, "%20site%3Amarinespecies.org"),"Ask WoRMS!",target="_blank"))
 })
 
 #create species tree
