@@ -115,11 +115,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                      label="Pick a phylum!",
                                                      choices=unique(reef_tidy$phylum)
                                          ),
-                                         h4(p("Curious what an organism looks like?")),
-                                         selectInput(inputId="photoaphylum",
-                                                     label="Pick a phylum!",
-                                                     choices=unique(reef_tidy$phylum)
-                                         ),
+                                         h5(p("Curious what an organism in that phylum looks like?")),
                                          imageOutput("phylum_image"),
                                          selectizeInput("searchaphylum", 
                                                         label = "Want to learn more about an organism?", 
@@ -428,15 +424,13 @@ output$plot4 <- renderPlot({
 ### TAB 5 - Species tree
 #produce image
 output$phylum_image <- renderImage({
-  imgs <- paste("www/",input$photoaphylum,".jpg",sep="")
-  list(src = imgs, alt = "alternate text", height = "50%")
+  imgs <- paste("www/",input$phylumSelectComboTree,".jpg",sep="")
+  list(src = imgs, alt = "alternate text", height = "75%")
 }, deleteFile = FALSE)
 
-#credit where credit is due
-nps_url <-  a("Shiny app", href="https://abenedetti.shinyapps.io/bioNPS/")
-
-output$nps_website <- renderUI({
-  tagList("With inspiration from the Biodiversity in National Parks", nps_url)
+#create reactive URL to search for organisms
+observeEvent(input$searchaphylum,{
+  output$url <-renderUI(a(href=paste0('https://www.google.com/search?q=', input$searchaphylum),"Google it!",target="_blank"))
 })
 
 #create species tree
@@ -454,9 +448,11 @@ output$tree <- renderCollapsibleTree(
   )
 )
 
-#create reactive URL to search for organisms
-observeEvent(input$searchaphylum,{
-  output$url <-renderUI(a(href=paste0('https://www.google.com/search?q=', input$searchaphylum),"Google it!",target="_blank"))
+#credit where credit is due
+nps_url <-  a("Shiny app", href="https://abenedetti.shinyapps.io/bioNPS/")
+
+output$nps_website <- renderUI({
+  tagList("With inspiration from the Biodiversity in National Parks", nps_url)
 })
 
 }
