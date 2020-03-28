@@ -365,7 +365,7 @@ reef_summary2 <- reactive({
     filter(binary > "0") %>% #filter out species not present
     st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>%  #create sticky geometry for lat/long
     group_by(location,phylum) %>% #group by location, then lat/long
-    summarize(`mean abundance` = mean(value), #get the mean count
+    summarize(Abundance = mean(value), #get the MEAN count
               sd_count = sd(value), #get the s.d. count
               sample_size = n()) %>%  #get the sample size
     filter(phylum==c(input$mapit))
@@ -374,7 +374,7 @@ reef_summary2 <- reactive({
 output$map1 <- renderLeaflet({
   reef_map1 <- tm_basemap("Esri.WorldImagery") +
     tm_shape(reef_summary2()) +
-    tm_symbols(id="location", col = "mean abundance", size ="mean abundance", scale=2, 
+    tm_symbols(id="location", col = "Abundance", size ="Abundance", scale=2, 
                palette = "inferno", contrast = c(1,0.5)) +
     tm_facets(by = "phylum")
   
@@ -382,13 +382,14 @@ output$map1 <- renderLeaflet({
 })
 
 output$plot3 <- renderPlot({
-  ggplot(reef_summary2(), aes(x=location, y=`mean abundance`)) +
-    geom_col(aes(fill=`mean abundance`)) +
+  ggplot(reef_summary2(), aes(x=location, y=Abundance)) +
+    geom_col(aes(fill=Abundance)) +
     scale_fill_viridis_c(option = "B", begin = 1, end = 0.5) +
     xlab("Location") +
     ylab("Mean abundance") +
     coord_flip() +
-    theme_minimal()
+    theme_minimal() +
+    theme(text = element_text(size = 15))
 })
 
 ######
@@ -416,7 +417,8 @@ output$plot4 <- renderPlot({
     xlab("Location") +
     ylab(paste(input$mapindex)) +
     coord_flip() +
-    theme_minimal()
+    theme_minimal() +
+    theme(text = element_text(size = 15))
 })
 
 ### TAB 5 - Species tree
