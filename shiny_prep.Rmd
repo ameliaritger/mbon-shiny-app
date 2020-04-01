@@ -15,6 +15,17 @@ library(vegan)
 library(gt)
 ```
 
+## FOR FRAP
+```{r}
+reef <- read_csv("FRAP-Mohawk.csv")
+
+#Tidy up the data
+reef_tidy <- reef %>%
+  pivot_longer(`Neighbor 1`:`Neighbor 4`) %>% 
+  mutate(keep = ifelse(name==`Already counted?`, name, "keep")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
+  filter(keep == "keep")
+```
+
 ## Organize the data 
 ```{r}
 #Read in data
@@ -52,7 +63,9 @@ reef_tidy <- reef_tidy %>%
 reef_tidy <- reef_tidy %>% 
   mutate(grouped_species = ifelse(str_detect(species, pattern = " worm"), "Other worms", ifelse(str_detect(species, pattern = "phoronid"), "Other worms", ifelse(str_detect(species, pattern = "tubeworm"), "Tubeworms", ifelse(str_detect(species, pattern = "algae"), "Other Algaes", ifelse(str_detect(species, pattern = "Filamentous"), "Other Algaes", ifelse(str_detect(species, pattern = "turf"), "Other Algaes", ifelse(str_detect(species, pattern = "blade"), "Other Algaes", ifelse(str_detect(species, pattern = "tunicate"), "Other Tunicates", ifelse(str_detect(species, pattern = "anemone"), "Other anemones", ifelse(str_detect(species, pattern = "bryozoan"), "Other bryozoans", ifelse(str_detect(species, pattern = "White fan"), "Other bryozoans", ifelse(str_detect(species, pattern = "sponge"), "Other Sponges", ifelse(str_detect(species, pattern = "Orange encrusting"), "Other Sponges", ifelse(str_detect(species, pattern = "Haliclona sp"), "Other Sponges", ifelse(str_detect(species, pattern = "zigzag"), "Other Hydroids", species)))))))))))))))) %>%
   mutate(grouped_genus = ifelse(str_detect(grouped_species, pattern = "Other"), grouped_species, ifelse(str_detect(grouped_species, pattern = "orange"), grouped_species, ifelse(str_detect(grouped_species, pattern = "White"), grouped_species, ifelse(str_detect(grouped_species, pattern = "encrusting"), grouped_species, ifelse(str_detect(grouped_species, pattern = "zigzag"), grouped_species, ifelse(str_detect(grouped_species, pattern = "solitary"), grouped_species, ifelse(str_detect(grouped_species, pattern = "sectioned"), grouped_species, genus)))))))) %>% #do the same for genus
-  mutate(grouped_genus = str_to_title(grouped_genus)) #capitalize first word of genus
+  mutate(grouped_genus = str_to_title(grouped_genus)) %>%  #capitalize genus name
+  mutate(phylum = str_to_title(phylum)) %>%  #capitalize phylum name
+  mutate(kingdom = "Animalia")
 
 genusnames <- unique(reef_tidy$genus)
 ```
@@ -63,13 +76,12 @@ genusnames <- unique(reef_tidy$genus)
 ```{r, message=FALSE, warning=FALSE}
 reef_phylum <- reef_tidy %>%
   filter(binary > "0") %>% #filter out species not present
-  mutate(focal_phylum="cnidaria") %>% #pick a focal phylum (BASED ON INPUT)
-  mutate(to_match = ifelse(phylum==focal_phylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
+  mutate(focal_genus="Corynactis") %>% #pick a focal phylum (BASED ON INPUT)
+  mutate(to_match = ifelse(grouped_genus==focal_genus, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
   filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
   #filter(!phylum=="annelida") %>% #remove the focal phylum, because we don't need to see co-occurrence of focal phylum with focal phylum (BASED ON INPUT)
-  filter(location=="Rodes") %>% 
-  filter(phylum %in% c("arthropoda", "chordata", "echinodermata")) %>% 
-  distinct(filename, phylum, .keep_all=TRUE) #remove duplicate values within the same plot
+  filter(location=="Mohawk") %>% 
+  distinct(filename, genus, .keep_all=TRUE) #remove duplicate values within the same plot
 ```
 
 #### Subset for a location
@@ -296,13 +308,24 @@ reef_map
 
 ### Let's make an interactive map! (species diversity/richness at each site)
 ```{r}
-reef_sf <- st_as_sf(reef_vegan, coords=geometry, crs=4326) #make data sf geometry friendly
+reef_index_sf <- st_as_sf(reef_vegan, coords=geometry, crs=4326) #make data sf geometry friendly
 
 reef_map <- tm_basemap("Esri.WorldImagery") +
-  tm_shape(reef_sf) + #tells tmap where we're looking (i.e. california)
+  tm_shape(reef_index_sf) + #tells tmap where we're looking (i.e. california)
   #tm_dots(labels="value", col="purple", size=0.5) #tells tmap to plot points on map labelled with id associated
-  tm_symbols(id="location", col = "diversity", size = "diversity", scale = 3) #view species diversity or richness (BASED ON INPUT)
+  tm_symbols(id="location", col = "diversity", size = "diversity", scale = 3, palette = "inferno", n = 9, contrast = c(1, 0.5)) #view species diversity or richness (BASED ON INPUT)
 
 tmap_mode("view") #view = interactive
 reef_map
+
+ggplot(data=reef_index_sf, aes(x=location, y=diversity)) +
+  geom_col(aes(fill=diversity)) +
+  scale_fill_viridis_c(option = "B", begin = 1, end = 0.5) +
+  #scale_fill_brewer(palette="Oranges") +
+  #scale_fill_gradient(low="#FFF8C4",high="#B74202") +
+  #8E3004 #FFFBD4
+  xlab("Location") +
+  ylab("diversity") +
+  coord_flip() +
+  theme_minimal()
 ```
