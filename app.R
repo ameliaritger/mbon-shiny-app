@@ -16,6 +16,8 @@ library(leaflet)
 library(collapsibleTree)
 library(shinycssloaders)
 
+#add functionality to publish app
+library(rsconnect)
 library(BiocManager)
 options(repos = BiocManager::repositories())
 
