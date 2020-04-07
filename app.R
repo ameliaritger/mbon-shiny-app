@@ -1,3 +1,7 @@
+# community composition plot - genus within phylum?
+# community composotion plot - pick a phylum then pick a location
+
+
 #attach packages
 library(tidyverse)
 library(janitor)
@@ -11,6 +15,9 @@ library(gt)
 library(leaflet)
 library(collapsibleTree)
 library(shinycssloaders)
+
+library(BiocManager)
+options(repos = BiocManager::repositories())
 
 ####################################################################
 ## Read in data
