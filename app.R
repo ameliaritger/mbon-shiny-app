@@ -1,5 +1,6 @@
 # community composition plot - genus within phylum?
-# community composotion plot - pick a phylum then pick a location
+# community composition plot - pick a phylum then pick a location
+# fix neighbor plot
 
 
 #attach packages
@@ -181,10 +182,18 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                      ),
                                          br(),
                                          plotOutput(outputId="plot3"),
-                                         p(strong("ADD ~Or, pick a genus~ HERE"))
+                                         p(strong("ADD ~Or, pick a genus~ HERE")),
+                                         selectInput(inputId="mapitgenus",
+                                                     label="Pick a genus!",
+                                                     choices=unique(reef_tidy$grouped_genus)
+                                         ),
+                                         br(),
+                                         plotOutput(outputId="plotgenusabund"),
                                          ),
                             mainPanel(h4(p("")),
-                                      leafletOutput("map1")
+                                      leafletOutput("map1"),
+                                      br(),
+                                      leafletOutput("mapgenusabund")
                                       #h4(p("Plot of organism abundance at each site across the SBC"))
                             )
                           )
@@ -399,6 +408,38 @@ output$plot3 <- renderPlot({
     coord_flip() +
     theme_minimal() +
     theme(text = element_text(size = 15))
+})
+
+reef_summary_genus_abund <- reactive({
+  reef_tidy %>%
+    filter(binary > "0") %>% #filter out species not present
+    st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>%  #create sticky geometry for lat/long
+    group_by(location,grouped_genus) %>% #group by location, then lat/long
+    summarize(Abundance = mean(value), #get the MEAN count
+              sd_count = sd(value), #get the s.d. count
+              sample_size = n()) %>%  #get the sample size
+    filter(grouped_genus==c(input$mapitgenus))
+})
+
+output$plotgenusabund <- renderPlot({
+  ggplot(reef_summary_genus_abund(), aes(x=location, y=Abundance)) +
+    geom_col(aes(fill=Abundance)) +
+    scale_fill_viridis_c(option = "B", begin = 1, end = 0.5) +
+    xlab("Location") +
+    ylab("Mean abundance") +
+    coord_flip() +
+    theme_minimal() +
+    theme(text = element_text(size = 15))
+})
+
+output$mapgenusabund <- renderLeaflet({
+  reef_mapgenusabund <- tm_basemap("Esri.WorldImagery") +
+    tm_shape(reef_summary_genus_abund()) +
+    tm_symbols(id="location", col = "Abundance", size ="Abundance", scale=2, 
+               palette = "inferno", contrast = c(1,0.5)) +
+    tm_facets(by = "grouped_genus")
+  
+  tmap_leaflet(reef_mapgenusabund)
 })
 
 ######
