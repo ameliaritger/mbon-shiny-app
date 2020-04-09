@@ -86,7 +86,9 @@ reef_vegan <- reef_location %>%
 #Create user interface
 ui <- navbarPage("Marine Biodiversity Observation Network",
                  theme = shinytheme("simplex"),
+                 
                  ## TAB
+                 
                  tabPanel("About the App",
                           h2("What's up with this app?"),
                           h5(p("This app allows users to visualize survey data collected in kelp forest communities in the Santa Barbara Channel (SBC).")),
@@ -114,7 +116,9 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                     p(em("Output: Plot, table"))
                                     ),
                           p(img(src = "mbon.png", height="25%", width="25%"))),
+                 
                  ## TAB
+                 
                  tabPanel("About the critters",
                           h1("Not familiar with the critters of this dataset? Look no further!"),
                           p(em("Please be patient, this page may take a few seconds to load")),
@@ -146,6 +150,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  ),
                  
                  ## TAB
+                 
                  tabPanel("Diversity",
                           h1("Species diversity and richness across the SBC"),
                           p("Calculated from mean count values for each organism"),
@@ -170,7 +175,9 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             )
                           )
                  ),
+                 
                  ## TAB 
+                 
                  tabPanel("Abundance",
                           h1("Mean abundance of marine organisms across the SBC"),
                           p("Calculated from mean count values for each phylum"),
@@ -183,10 +190,17 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          br(),
                                          plotOutput(outputId="plot3"),
                                          p(strong("ADD ~Or, pick a genus~ HERE")),
-                                         selectInput(inputId="mapitgenus",
-                                                     label="Pick a genus!",
-                                                     choices=unique(reef_tidy$grouped_genus)
-                                         ),
+                                         br(),
+                                         selectizeInput(inputId="mapitgenus",
+                                                        label = "Want to learn more about an organism?",
+                                                        choices = sort(c(unique(reef_tidy$grouped_genus), unique(reef_tidy$phylum))),
+                                                        multiple = FALSE,
+                                                        options = list(placeholder='Enter genus or species name',
+                                                                       onInitialize = I('function() { this.setValue(""); }'))),
+                                         # selectInput(inputId="mapitgenus",
+                                         #             label="Pick a genus!",
+                                         #             choices=unique(reef_tidy$grouped_genus)
+                                         # ),
                                          br(),
                                          plotOutput(outputId="plotgenusabund"),
                                          ),
@@ -198,7 +212,9 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             )
                           )
                  ),
-                 ## TAB 
+                 
+                 ## TAB
+                 
                  tabPanel("Community",
                           h1("Community composition at each site"),
                           p("Calculated from presence (0 or 1) in replicate plots"),
@@ -220,7 +236,9 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             )
                           )
                  ),
+                 
                  ## TAB 
+                 
                  tabPanel("Neighbors",
                           h1("Will you be my neighbor? Evaluating how often organisms are found together."),
                           p(""),
@@ -283,7 +301,8 @@ server <- function(input, output){
   #     filter(phylum==c(input$mapit))
   # })
 
-### TAB 4 - Neighbor plot 
+##**##**##**##**##**##
+### TAB - Neighbor plot 
 ## Subset for a phylum
 reef_phylum <- reactive({
   reef_tidy %>%
@@ -304,7 +323,9 @@ output$plot1 <- renderPlot({
     theme_minimal()
    })
 
-### TAB 4 - Neighbor table 
+##**##**##**##**##**##
+
+### TAB - Neighbor table 
 #Find number of times focal phylum makes an appearance
 reef_focal <- reactive({
   reef_tidy %>%
@@ -352,7 +373,9 @@ output$table1 <- render_gt({
   expr = reef_table()
 })
 
-### TAB 3 - Community plot
+##**##**##**##**##**##
+
+### TAB - Community plot
 reef_summary <- reactive({
   reef_tidy %>%
     filter(binary > "0") %>% #filter out species not present
@@ -375,8 +398,9 @@ output$plot2 <- renderPlot({
     theme_minimal()
 })
 
-######
-### TAB 2 - Abundance map
+##**##**##**##**##**##
+
+### TAB - Abundance map
 #double check this....
 reef_summary2 <- reactive({
   reef_tidy %>%
@@ -414,11 +438,11 @@ reef_summary_genus_abund <- reactive({
   reef_tidy %>%
     filter(binary > "0") %>% #filter out species not present
     st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>%  #create sticky geometry for lat/long
-    group_by(location,grouped_genus) %>% #group by location, then lat/long
+    filter((grouped_genus==input$mapitgenus)|(phylum==input$mapitgenus)) %>% 
+    group_by(location) %>% #group by location
     summarize(Abundance = mean(value), #get the MEAN count
               sd_count = sd(value), #get the s.d. count
-              sample_size = n()) %>%  #get the sample size
-    filter(grouped_genus==c(input$mapitgenus))
+              sample_size = n())  #get the sample size
 })
 
 output$plotgenusabund <- renderPlot({
@@ -436,16 +460,14 @@ output$mapgenusabund <- renderLeaflet({
   reef_mapgenusabund <- tm_basemap("Esri.WorldImagery") +
     tm_shape(reef_summary_genus_abund()) +
     tm_symbols(id="location", col = "Abundance", size ="Abundance", scale=2, 
-               palette = "inferno", contrast = c(1,0.5)) +
-    tm_facets(by = "grouped_genus")
+               palette = "inferno", contrast = c(1,0.5))
   
   tmap_leaflet(reef_mapgenusabund)
 })
 
-######
+##**##**##**##**##**##
 
-### TAB 1 - Diversity map
-
+### TAB  - Diversity map
 reef_index_sf <- reactive({
   reef_vegan %>% 
     st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
@@ -471,7 +493,9 @@ output$plot4 <- renderPlot({
     theme(text = element_text(size = 15))
 })
 
-### TAB 5 - Species tree
+##**##**##**##**##**##
+
+### TAB - Species tree
 #produce image
 output$phylum_image <- renderImage({
   imgs <- paste("www/",input$phylumSelectComboTree,".jpg",sep="")
