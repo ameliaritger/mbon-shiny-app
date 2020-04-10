@@ -484,9 +484,11 @@ output$plot4 <- renderPlot({
 ### TAB - Species tree
 #produce image
 output$phylum_image <- renderImage({
-  imgs <- paste("www/",input$phylumSelectComboTree,".jpg",sep="")
-  list(src = imgs, alt = "alternate text", height = "75%")
-}, deleteFile = FALSE)
+  filename <- normalizePath(file.path('./www/', paste(input$phylumSelectComboTree, ".png", sep="")))
+  
+  list(src = filename)
+  }, deleteFile = FALSE
+)
 
 #create reactive URL to search for organisms
 observeEvent(input$searchaphylum,{
