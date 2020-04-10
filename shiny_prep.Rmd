@@ -15,17 +15,6 @@ library(vegan)
 library(gt)
 ```
 
-## FOR FRAP
-```{r}
-reef <- read_csv("FRAP-Mohawk.csv")
-
-#Tidy up the data
-reef_tidy <- reef %>%
-  pivot_longer(`Neighbor 1`:`Neighbor 4`) %>% 
-  mutate(keep = ifelse(name==`Already counted?`, name, "keep")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
-  filter(keep == "keep")
-```
-
 ## Organize the data 
 ```{r}
 #Read in data
@@ -96,13 +85,13 @@ reef_location <- reef_tidy %>%
   distinct(filename, .keep_all=TRUE) #remove duplicate values within the same plot
 
 #Find average abundance values for each location
-reef_summary <- reef_tidy %>%
+reef_summary2 <- reef_tidy %>%
   filter(binary > "0") %>% #filter out species not present
-  group_by(location,phylum) %>% #group by location, then lat/long
-  summarize(mean_count = mean(value), #get the mean count
+  filter((grouped_genus=="Corynactis")|(phylum=="Corynactis")) %>% 
+  group_by(location) %>% #group by location, then lat/long
+  summarize(Abundance = mean(value), #get the mean count
             median_count = median(value),
             sd_count = sd(value), #get the s.d. count
-            iqr = IQR(value), #get the interquartile range for the count
             sample_size = n())
 
 #Create separate dataframe of just latitude, longitude, and locations (use for later plotting species diversity/richness at each location)
