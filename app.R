@@ -2,7 +2,6 @@
 # community composition plot - pick a phylum then pick a location
 # fix neighbor plot
 
-
 #attach packages
 library(tidyverse)
 library(janitor)
@@ -21,6 +20,10 @@ library(shinycssloaders)
 library(rsconnect)
 library(BiocManager)
 options(repos = BiocManager::repositories())
+
+#until janitor() package issues are resolve, download older version of it!
+#require(devtools)
+#install_version("janitor", version = "1.2.1", repos = "http://cran.us.r-project.org")
 
 ####################################################################
 ## Read in data

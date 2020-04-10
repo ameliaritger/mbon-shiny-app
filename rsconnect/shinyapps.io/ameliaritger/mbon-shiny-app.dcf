@@ -1,13 +1,13 @@
-name: shiny-app-mbon
-title:
+name: mbon-shiny-app
+title: mbon-shiny-app
 username:
 account: ameliaritger
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
-appId: 2069754
-bundleId: 2982223
-url: https://ameliaritger.shinyapps.io/shiny-app-mbon/
-when: 1586283015.86894
+appId: 2093041
+bundleId: 2997097
+url: https://ameliaritger.shinyapps.io/mbon-shiny-app/
+when: 1586535585.3149
 asMultiple: FALSE
 asStatic: FALSE
 ignoredFiles: image-gallery.R|MBONReef_Histogram.xlsx|README.md|shiny_prep.html|shiny_prep.Rmd
