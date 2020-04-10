@@ -183,32 +183,16 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                           p("Calculated from mean count values for each phylum"),
                           sidebarLayout(
                             sidebarPanel("",
-                                         selectInput(inputId="mapit",
-                                                     label="Pick a phylum!",
-                                                     choices=unique(reef_tidy$phylum)
-                                                     ),
-                                         br(),
-                                         plotOutput(outputId="plot3"),
-                                         p(strong("ADD ~Or, pick a genus~ HERE")),
-                                         br(),
                                          selectizeInput(inputId="mapitgenus",
-                                                        label = "Want to learn more about an organism?",
-                                                        choices = sort(c(unique(reef_tidy$grouped_genus), unique(reef_tidy$phylum))),
+                                                        label = "Enter phylum or species name!",
+                                                        choices = sort(c(unique(reef_tidy$grouped_species), unique(reef_tidy$phylum))),
                                                         multiple = FALSE,
-                                                        options = list(placeholder='Enter genus or species name',
-                                                                       onInitialize = I('function() { this.setValue(""); }'))),
-                                         # selectInput(inputId="mapitgenus",
-                                         #             label="Pick a genus!",
-                                         #             choices=unique(reef_tidy$grouped_genus)
-                                         # ),
+                                                        selected = 'Annelida'),
                                          br(),
                                          plotOutput(outputId="plotgenusabund"),
                                          ),
                             mainPanel(h4(p("")),
-                                      leafletOutput("map1"),
-                                      br(),
                                       leafletOutput("mapgenusabund")
-                                      #h4(p("Plot of organism abundance at each site across the SBC"))
                             )
                           )
                  ),
@@ -417,9 +401,8 @@ output$map1 <- renderLeaflet({
   reef_map1 <- tm_basemap("Esri.WorldImagery") +
     tm_shape(reef_summary2()) +
     tm_symbols(id="location", col = "Abundance", size ="Abundance", scale=2, 
-               palette = "inferno", contrast = c(1,0.5)) +
-    tm_facets(by = "phylum")
-  
+               palette = "inferno", contrast = c(1,0.5))
+
   tmap_leaflet(reef_map1)
 })
 
@@ -438,7 +421,7 @@ reef_summary_genus_abund <- reactive({
   reef_tidy %>%
     filter(binary > "0") %>% #filter out species not present
     st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>%  #create sticky geometry for lat/long
-    filter((grouped_genus==input$mapitgenus)|(phylum==input$mapitgenus)) %>% 
+    filter((grouped_species==input$mapitgenus)|(phylum==input$mapitgenus)) %>% 
     group_by(location) %>% #group by location
     summarize(Abundance = mean(value), #get the MEAN count
               sd_count = sd(value), #get the s.d. count
