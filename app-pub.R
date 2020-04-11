@@ -209,7 +209,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             sidebarPanel("",
                                          selectInput(inputId="locationselect",
                                                      label="Pick a location!",
-                                                     choices=unique(reef_tidy$location)
+                                                     choices=sort(unique(reef_tidy$location))
                                          ),
                                          radioButtons(inputId = "orientationselect", 
                                                       label = "Pick an orientation!",
