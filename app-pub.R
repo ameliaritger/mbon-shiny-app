@@ -215,6 +215,9 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                       label = "Pick an orientation!",
                                                       choices = c("All"="l", "Vertical"="vertical", "Horizontal"="horizontal")
                                          ),
+                                         br(),
+                                         h5(p("Curious what a quadrat from that location looks like?")),
+                                         imageOutput("location_image")
                             ),
                             mainPanel("",
                                       plotOutput(outputId="plot2")
@@ -361,6 +364,14 @@ output$table1 <- render_gt({
 ##**##**##**##**##**##
 
 ### TAB - Community plot
+output$location_image <- renderImage({
+  filename <- normalizePath(file.path('./www/', paste(input$locationselect, ".png", sep="")))
+  
+  list(src = filename,
+       height = "80%")
+}, deleteFile = FALSE
+)
+
 reef_summary <- reactive({
   reef_tidy %>%
     filter(binary > "0") %>% #filter out species not present
