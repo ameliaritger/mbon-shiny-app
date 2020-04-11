@@ -217,9 +217,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          ),
                             ),
                             mainPanel("",
-                                      plotOutput(outputId="plot2"),                                         
-                                      p(strong("APPLY COLOR SCHEME TO PHYLUM NAMES"))
-
+                                      plotOutput(outputId="plot2")
                             )
                           )
                  )
@@ -366,14 +364,14 @@ output$table1 <- render_gt({
 reef_summary <- reactive({
   reef_tidy %>%
     filter(binary > "0") %>% #filter out species not present
-    group_by(location,phylum, orientation) %>% #group by location, then lat/long, include orientation for horizontal versus vertical surfaces
+    filter(location==input$locationselect,
+           str_detect(orientation,pattern=input$orientationselect)) %>% 
+    group_by(phylum) %>% #group by phylum
     summarize(mean_count = mean(value), #get the mean count
               median_count = median(value),
               sd_count = sd(value), #get the s.d. count
               iqr = IQR(value), #get the interquartile range for the count
-              sample_size = n()) %>% 
-    filter(location==input$locationselect,
-           str_detect(orientation,pattern=input$orientationselect)) 
+              sample_size = n())
 })
 
 pal <- c(
@@ -393,7 +391,7 @@ pal <- c(
 )
 
 output$plot2 <- renderPlot({
-  ggplot(data=reef_summary(), aes(x=phylum, y=sample_size, fill=phylum)) +
+  ggplot(data=reef_summary(), aes(x=reorder(phylum, sample_size), y=sample_size, fill=phylum)) +
     geom_col() +
     scale_fill_manual(values=pal, limits=names(pal), guide=FALSE) +
     coord_flip() +
