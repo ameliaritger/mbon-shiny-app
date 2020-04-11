@@ -375,9 +375,8 @@ output$table1 <- render_gt({
 output$location_image <- renderImage({
   filename <- normalizePath(file.path('./www/', paste(input$locationselect, ".png", sep="")))
   
-  list(src = filename,
-       height = "70%")
-}, deleteFile = FALSE
+  list(src = filename)
+       }, deleteFile = FALSE
 )
 
 reef_summary <- reactive({
@@ -530,8 +529,8 @@ observeEvent(input$searchaphylum,{
 })
 
 #create species tree
-speciesTree <- reactive(reef_tidy[reef_tidy$phylum==input$phylumSelectComboTree,
-                                  c("phylum", "grouped_genus", "grouped_species")])
+speciesTree <- reactive(unique(reef_tidy[reef_tidy$phylum==input$phylumSelectComboTree,
+                                  c("phylum", "grouped_genus", "grouped_species")]))
 
 output$species_tree <- renderCollapsibleTree(
   collapsibleTree(
