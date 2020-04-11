@@ -235,6 +235,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                       label = "Pick an orientation!",
                                                       choices = c("All"="l", "Vertical"="vertical", "Horizontal"="horizontal")
                                          ),
+                                         h6(p(em("Note: not all locations have both vertical and horizontal orientations"))),
                                          br(),
                                          h5(p("Curious what a quadrat from the location looks like?")),
                                          tags$head(tags$style(
