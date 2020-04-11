@@ -144,7 +144,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          uiOutput("url", style = "font-size:20px; text-align:center")
                             ),
                             mainPanel(h3(p("Hierarchical tree of the species found in this dataset")),
-                                      collapsibleTreeOutput('tree', height='600px') %>%
+                                      collapsibleTreeOutput('species_tree', height='600px') %>%
                                         withSpinner(color = "#008b8b"),
                                       h6(p(uiOutput("nps_website"))
                                       )
@@ -514,7 +514,7 @@ observeEvent(input$searchaphylum,{
 speciesTree <- reactive(reef_tidy[reef_tidy$phylum==input$phylumSelectComboTree,
                                   c("phylum", "grouped_genus", "grouped_species")])
 
-output$tree <- renderCollapsibleTree(
+output$species_tree <- renderCollapsibleTree(
   collapsibleTree(
     speciesTree(),
     root = input$phylumSelectComboTree,
