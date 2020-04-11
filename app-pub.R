@@ -393,19 +393,19 @@ reef_summary <- reactive({
 })
 
 pal <- c(
-  "Annelida" = "chocolate",
-  "Arthropoda" = "lightyellow3", 
-  "Chlorophyta" = "mediumseagreen", 
-  "Chordata" = "orange2",
-  "Cnidaria" = "skyblue3", 
-  "Echinodermata" = "tomato1", 
-  "Ectoprocta" = "sandybrown", 
-  "Fish" = "orangered3", 
-  "Heterokontophyta" = "olivedrab", 
-  "Mollusca" = "slategrey", 
-  "Phoronida" = "lightgoldenrodyellow",
-  "Porifera" = "lightgoldenrod", 
-  "Rhodophyta" = "palevioletred"
+  "Annelida" = "#D2691E",
+  "Arthropoda" = "#CDCDB4", 
+  "Chlorophyta" = "#3CB371", 
+  "Chordata" = "#EE9A00",
+  "Cnidaria" = "#6CA6CD", 
+  "Echinodermata" = "#FF6347", 
+  "Ectoprocta" = "#F4A460", 
+  "Fish" = "#CD3700", 
+  "Heterokontophyta" = "#6B8E23", 
+  "Mollusca" = "#708090", 
+  "Phoronida" = "#FAFAD2",
+  "Porifera" = "#EEDD82", 
+  "Rhodophyta" = "#DB7093"
 )
 
 output$plot2 <- renderPlot({
@@ -532,13 +532,15 @@ observeEvent(input$searchaphylum,{
 speciesTree <- reactive(unique(reef_tidy[reef_tidy$phylum==input$phylumSelectComboTree,
                                   c("phylum", "grouped_genus", "grouped_species")]))
 
+colorTree <- reactive(as.vector(pal[c(input$phylumSelectComboTree)]))
+
 output$species_tree <- renderCollapsibleTree(
   collapsibleTree(
     speciesTree(),
     root = input$phylumSelectComboTree,
     attribute = "grouped_species",
     hierarchy = c("grouped_genus","grouped_species"),
-    fill = "#008b8b",
+    fill = colorTree(),
     zoomable = FALSE
   )
 )
