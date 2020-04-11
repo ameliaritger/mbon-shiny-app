@@ -395,16 +395,16 @@ reef_summary <- reactive({
 pal <- c(
   "Annelida" = "#D2691E",
   "Arthropoda" = "#CDCDB4", 
-  "Chlorophyta" = "#3CB371", 
-  "Chordata" = "#EE9A00",
-  "Cnidaria" = "#6CA6CD", 
+  "Chlorophyta" = "#A2CD5A", 
+  "Chordata" = "#FFB90F",
+  "Cnidaria" = "#B4CDCD", 
   "Echinodermata" = "#FF6347", 
-  "Ectoprocta" = "#F4A460", 
-  "Fish" = "#CD3700", 
-  "Heterokontophyta" = "#6B8E23", 
-  "Mollusca" = "#708090", 
+  "Ectoprocta" = "#FF8C00",
+  "Fish" = "#CD3700",
+  "Heterokontophyta" = "#8B814C",
+  "Mollusca" = "#708090",
   "Phoronida" = "#FAFAD2",
-  "Porifera" = "#EEDD82", 
+  "Porifera" = "#EEDC82",
   "Rhodophyta" = "#DB7093"
 )
 
