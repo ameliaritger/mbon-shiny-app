@@ -24,6 +24,8 @@ options(repos = BiocManager::repositories())
 #until janitor() package issues are resolve, download older version of it!
 #require(devtools)
 #install_version("janitor", version = "1.2.1", repos = "http://cran.us.r-project.org")
+#janitor version update to check resolution
+#devtools::install_github("sfirke/janitor") 
 
 ####################################################################
 ## Read in data
