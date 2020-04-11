@@ -132,6 +132,10 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                      choices=unique(reef_tidy$phylum)
                                          ),
                                          h5(p("Curious what an organism in that phylum looks like?")),
+                                         tags$head(tags$style(
+                                           type="text/css",
+                                           "#phylum_image img {max-width: 100%; width: 100%; height: auto}"
+                                         )),
                                          imageOutput("phylum_image"),
                                          selectizeInput("searchaphylum", 
                                                         label = "Want to learn more about an organism?", 
@@ -187,7 +191,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                           sidebarLayout(
                             sidebarPanel("",
                                          selectizeInput(inputId="mapitgenus",
-                                                        label = "Enter phylum or species name!",
+                                                        label = "Enter a phylum or species name!",
                                                         choices = sort(c(unique(reef_tidy$grouped_species), unique(reef_tidy$phylum))),
                                                         multiple = FALSE,
                                                         selected = 'Annelida'),
@@ -216,7 +220,11 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                       choices = c("All"="l", "Vertical"="vertical", "Horizontal"="horizontal")
                                          ),
                                          br(),
-                                         h5(p("Curious what a quadrat from that location looks like?")),
+                                         h5(p("Curious what a quadrat from the location looks like?")),
+                                         tags$head(tags$style(
+                                           type="text/css",
+                                           "#location_image img {max-width: 100%; width: 100%; height: auto}"
+                                         )),
                                          imageOutput("location_image")
                             ),
                             mainPanel("",
@@ -368,7 +376,7 @@ output$location_image <- renderImage({
   filename <- normalizePath(file.path('./www/', paste(input$locationselect, ".png", sep="")))
   
   list(src = filename,
-       height = "80%")
+       height = "70%")
 }, deleteFile = FALSE
 )
 
