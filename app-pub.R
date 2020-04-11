@@ -475,9 +475,12 @@ output$plotgenusabund <- renderPlot({
     theme(text = element_text(size = 15))
 })
 
+bb_sbc <- st_bbox(reef_vegan %>%
+                    st_as_sf(coords=c("longitude", "latitude"), crs=4326)) #create fixed coordinates of the SBC for those pesky organisms not found across the SBC
+
 output$mapgenusabund <- renderLeaflet({
   reef_mapgenusabund <- tm_basemap("Esri.WorldImagery") +
-    tm_shape(reef_summary_genus_abund()) +
+    tm_shape(reef_summary_genus_abund(), bbox = bb_sbc) +
     tm_symbols(id="location", col = "Abundance", size ="Abundance", scale=2, 
                palette = "inferno", contrast = c(1,0.5))
   
