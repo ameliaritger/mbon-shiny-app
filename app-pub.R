@@ -373,12 +373,29 @@ reef_summary <- reactive({
               iqr = IQR(value), #get the interquartile range for the count
               sample_size = n()) %>% 
     filter(location==input$locationselect,
-           str_detect(orientation,pattern=input$orientationselect))
+           str_detect(orientation,pattern=input$orientationselect)) 
 })
 
+pal <- c(
+  "Annelida" = "chocolate",
+  "Arthropoda" = "lightyellow3", 
+  "Chlorophyta" = "mediumseagreen", 
+  "Chordata" = "orange2",
+  "Cnidaria" = "skyblue3", 
+  "Echinodermata" = "tomato1", 
+  "Ectoprocta" = "sandybrown", 
+  "Fish" = "orangered3", 
+  "Heterokontophyta" = "olivedrab", 
+  "Mollusca" = "slategrey", 
+  "Phoronida" = "lightgoldenrodyellow",
+  "Porifera" = "lightgoldenrod", 
+  "Rhodophyta" = "palevioletred"
+)
+
 output$plot2 <- renderPlot({
-  ggplot(data=reef_summary(), aes(x=phylum, y=sample_size)) +
-    geom_col(fill = "#008b8b") +
+  ggplot(data=reef_summary(), aes(x=phylum, y=sample_size, fill=phylum)) +
+    geom_col() +
+    scale_fill_manual(values=pal, limits=names(pal), guide=FALSE) +
     coord_flip() +
     ylab(paste("Number of plots")) +
     xlab("Phylum") +
