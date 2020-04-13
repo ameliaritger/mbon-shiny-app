@@ -24,8 +24,6 @@ options(repos = BiocManager::repositories())
 #until janitor() package issues are resolve, download older version of it!
 #require(devtools)
 #install_version("janitor", version = "1.2.1", repos = "http://cran.us.r-project.org")
-#janitor version update to check resolution
-#devtools::install_github("sfirke/janitor") 
 
 ####################################################################
 ## Read in data
@@ -250,37 +248,37 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                       plotOutput(outputId="plot_community")
                             )
                           )
-                 )
+                 ),
                  
                  ## TAB 
-                 
-                 # tabPanel("Neighbors",
-                 #          h1("Will you be my neighbor? Evaluating how often organisms are found together."),
-                 #          p(""),
-                 #          sidebarLayout(
-                 #            sidebarPanel("",
-                 #                         selectInput(inputId="pickaphylum",
-                 #                                     label="Pick a phylum!",
-                 #                                     choices=unique(reef_tidy$phylum)
-                 #                                     ),
-                 #                         pickerInput(inputId="coocurring",
-                 #                                     label="Pick some neighbors!",
-                 #                                     choices=unique(reef_tidy$phylum),
-                 #                                     options = list(`actions-box`=TRUE,
-                 #                                                    `selected-text-format` = "count > 3"),
-                 #                                     multiple = TRUE),
-                 #                         p(strong("ADD ~Or, pick a genus~ HERE?")),
-                 #                         p(strong("& APPLY COLOR SCHEME TO PHYLUM NAMES"))
-                 #                         ),
-                 #            mainPanel("",
-                 #                      p(""),
-                 #                      plotOutput(outputId="plot_abundance"),
-                 #                      br(),
-                 #                      br(),
-                 #                      gt_output(outputId="table1")
-                 #                      )
-                            #)
-                         # )
+
+                 tabPanel("Neighbors",
+                          h1("Will you be my neighbor? Evaluating how often organisms are found together."),
+                          p(""),
+                          sidebarLayout(
+                            sidebarPanel("",
+                                         selectInput(inputId="pickaphylum",
+                                                     label="Pick a phylum!",
+                                                     choices=unique(reef_tidy$phylum)
+                                                     ),
+                                         pickerInput(inputId="coocurring",
+                                                     label="Pick some neighbors!",
+                                                     choices=unique(reef_tidy$phylum),
+                                                     options = list(`actions-box`=TRUE,
+                                                                    `selected-text-format` = "count > 3"),
+                                                     multiple = TRUE),
+                                         p(strong("ADD ~Or, pick a genus~ HERE?")),
+                                         p(strong("& APPLY COLOR SCHEME TO PHYLUM NAMES"))
+                                         ),
+                            mainPanel("",
+                                      p(""),
+                                      plotOutput(outputId="plot_neighbor_abundance"),
+                                      br(),
+                                      br(),
+                                      gt_output(outputId="neighbor_table")
+                                      )
+                          )
+                 )
 )
                  
 
@@ -299,18 +297,19 @@ server <- function(input, output){
 ### Neighbor plot 
 ## Subset for a phylum
 reef_phylum <- reactive({
-  reef_tidy %>%
+  reef_tidy %>% 
     filter(binary > "0") %>% #filter out organisms not present
     mutate(focal_phylum=input$pickaphylum) %>% #pick a focal phylum (BASED ON INPUT)
     mutate(to_match = ifelse(phylum==focal_phylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
     filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
-    filter(phylum %in% c(input$coocurring)) %>% #select only the coocurring phyla you want to look at (BASED ON INPUT)
-    distinct(filename, phylum, .keep_all=TRUE) #remove duplicate phylum observations within the same plot
+    distinct(filename, phylum, .keep_all=TRUE) %>% #filter for unique phylum values for each plot
+    filter(phylum %in% c(input$coocurring)) #select only the coocurring phyla you want to look at (BASED ON INPUT)
   })
 
-output$plot_abundance <- renderPlot({
-  ggplot(reef_phylum(), aes(x=fct_rev(phylum))) +
-    geom_bar(fill = "#008b8b") +
+output$plot_neighbor_abundance <- renderPlot({
+  ggplot(reef_phylum(), aes(x=fct_rev(phylum), fill=phylum)) +
+    geom_bar() +
+    scale_fill_manual(values = pal) +
     xlab("Phylum") +
     ylab(paste("Abundance in plots also containing",input$pickaphylum)) +
     coord_flip() +
@@ -361,7 +360,7 @@ reef_table <- reactive({
                percent_neighbor=paste("Percent neighboring phyla co-occur with", input$pickaphylum))
 })
 
-output$table1 <- render_gt({
+output$neighbor_table <- render_gt({
   expr = reef_table()
 })
 
