@@ -220,7 +220,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  
                  tabPanel("Community",
                           h1("Community composition at each site"),
-                          p("Compare ecological communities on vertical and horizontal surfaces along the reef.", em("Calculated from presence (0 or 1) in replicate quadrats at each of the 22 sites in the SBC.")),
+                          p("Compare ecological communities on vertical and horizontal surfaces along the reef.", em("Calculated from presence (yes or no) in replicate quadrats at each of the 22 sites in the SBC.")),
                           sidebarLayout(
                             sidebarPanel("",
                                          selectInput(inputId="locationselect",
@@ -250,7 +250,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
 
                  tabPanel("Neighbors",
                           h1("Will you be my neighbor? Evaluating how often organisms are found together."),
-                          p("Compare organismal co-occurrence across the SBC.", em("Calculated from presence (0 or 1) in replicate quadrats at all 22 sites in the SBC.")),
+                          p("Compare organismal co-occurrence across the SBC.", em("Calculated from presence (yes or no) in replicate quadrats at all 22 sites in the SBC.")),
                           sidebarLayout(
                             sidebarPanel("",
                                          selectInput(inputId="pickaphylum",
@@ -357,10 +357,10 @@ reef_table <- reactive({
     fmt_percent(columns=vars(percent_focal, percent_neighbor), decimal=1) %>% 
     tab_options(table.width = pct(90)) %>% #make the table width 80% of the page width
     cols_label(V1=paste("Quadrats with",input$pickaphylum),
-               V2="Quadrats with neighboring phyla",
-               V3=paste("Quadrats with both",input$pickaphylum,"and neighboring phyla"),
-               percent_focal=paste("Percent", input$pickaphylum, "co-occurrs with neighboring phyla"),
-               percent_neighbor=paste("Percent neighboring phyla co-occur with", input$pickaphylum))
+               V2="Quadrats with neighbors",
+               V3=paste("Quadrats with both",input$pickaphylum,"and all neighbors"),
+               percent_focal=paste("Percent", input$pickaphylum, "co-occurrs with neighbors"),
+               percent_neighbor=paste("Percent neighbors co-occur with", input$pickaphylum))
 })
 
 output$table_neighbor <- render_gt({
