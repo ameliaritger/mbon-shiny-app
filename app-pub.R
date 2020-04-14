@@ -423,7 +423,7 @@ reef_summary_abundance <- reactive({
 
 #create abundance plot
 output$plot_abundance <- renderPlot({
-  ggplot(reef_summary_abundance(), aes(x=location, y=Abundance)) +
+  ggplot(reef_summary_abundance(), aes(x=reorder(location, desc(location)), y=Abundance)) +
     geom_col(aes(fill=Abundance)) + #fill color corresponds to value
     scale_fill_viridis_c(option = "B", begin = 1, end = 0.5) + #set viridis palette to match map
     xlab("Location") +
@@ -468,7 +468,7 @@ output$map_index <- renderLeaflet({
 
 #create index plot
 output$plot_index <- renderPlot({
-  ggplot(reef_vegan_sf(), aes(x=location, y=!!as.name(input$pickanindex))) +
+  ggplot(reef_vegan_sf(), aes(x=reorder(location, desc(location)), y=!!as.name(input$pickanindex))) +
     geom_col(aes(fill=!!as.name(input$pickanindex))) + #bar fill color corresponds to map index selection
     scale_fill_viridis_c(option = "B", begin = 1, end = 0.5) + #set viridis palette to match map
     xlab("Location") +
