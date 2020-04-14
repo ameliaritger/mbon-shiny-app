@@ -113,41 +113,31 @@ pal <- c(
 ui <- navbarPage("Marine Biodiversity Observation Network",
                  theme = shinytheme("simplex"),
                  
-                 # ## TAB
-                 # 
-                 # tabPanel("About the App",
-                 #          h2("What's up with this app?"),
-                 #          h5(p("This app allows users to visualize survey data collected in kelp forest communities in the Santa Barbara Channel (SBC).")),
-                 #          p("These data were collected from October 2013 until August 2015.",
-                 #            "Surveyors took photographs of 1m x 1m quadrats every 2m along a 20m transect.",
-                 #            "Both vertical and horizontal surfaces surveyed.",
-                 #            "Photographs were later analyzed to identify marine species present at various sites within the SBC."),
-                 #          h4(uiOutput("mbon_website")),
-                 #          p(img(src = "quadrat.jpg", height="25%", width="25%")),
-                 #          h3(p("Each tab allows users to explore a different aspect of the dataset.")),
-                 #          h4("Map - Diversity"),
-                 #            p("Users may explore species diversity and richness across all 22 sites in the SBC.",
-                 #                      p(em("Output: Map, plot"))
-                 #                      ),
-                 #          h4("Map - Abundance"),
-                 #          p("Users may explore phylum abundances across all 22 sites in the SBC.",
-                 #                    p(em("Output: Map, plot"))
-                 #                    ),
-                 #          h4("Community"),
-                 #          p("Users may visualize community composition at each of the 22 sites in the SBC. Users are able to compare ecological communities on vertical and horizontal surfaces along the reef.",
-                 #                    p(em("Output: Plot")),
-                 #                    ),
-                 #          h4("Neighbors"),
-                 #          p("Users may compare organismal co-occurrence within quadrats across all sites. Users may compare plots containing focal and/or neighboring organisms to assess how often the organisms are found together and/or separately.",
-                 #                    p(em("Output: Plot, table"))
-                 #                    ),
-                 #          p(img(src = "mbon.png", height="25%", width="25%"))),
-                 # 
+                 ## TAB
+
+                 tabPanel("About the App",
+                          h2(p("This app allows users to visualize survey data collected in kelp forest communities in the Santa Barbara Channel (SBC).")),
+                          br(),
+                          h3(p("Each tab allows users to explore a different aspect of the dataset.")),
+                          br(),
+                          h4(uiOutput("mbon_website")),
+                          p(img(src = "quadrat.jpg", height="25%", width="25%")),
+                          p(img(src = "mbon.png", height="25%", width="25%")),
+                   HTML(paste0(
+                     "<br><br><br><br><br><br>",
+                     "<script>",
+                     "var today = new Date();",
+                     "var yyyy = today.getFullYear();",
+                     "</script>",
+                     "<p style = 'text-align: center;'><small><a href='https://ameliaritger.netlify.com/' target='_blank'>Created by Amelia Ritger</a> - <script>document.write(yyyy);</script></small></p>")
+                   )
+                 ),
+
                  ## TAB
                  
                  tabPanel("About the critters",
                           h1("Not familiar with the critters of this dataset? Look no further!"),
-                          p(em("Please be patient, this page may take a few seconds to load")),
+                          p(em("Please be patient, this page may take a few seconds to load.")),
                           sidebarLayout(
                             sidebarPanel("",
                                          selectInput(inputId="phylumSelectComboTree",
@@ -183,7 +173,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  
                  tabPanel("Diversity",
                           h1("Species diversity and richness across the SBC"),
-                          p("Calculated from mean count values for each organism"),
+                          p(em("Calculated from mean count values for each species.")),
                           sidebarLayout(
                             sidebarPanel("",
                                          radioButtons(inputId="pickanindex",
@@ -209,7 +199,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  
                  tabPanel("Abundance",
                           h1("Mean abundance of marine organisms across the SBC"),
-                          p("Calculated from mean count values for each phylum"),
+                          p(em("Calculated from mean count values for each organism.")),
                           sidebarLayout(
                             sidebarPanel("",
                                          selectizeInput(inputId="mapitabundance",
@@ -230,7 +220,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  
                  tabPanel("Community",
                           h1("Community composition at each site"),
-                          p("Calculated from presence (0 or 1) in replicate plots"),
+                          p("Compare ecological communities on vertical and horizontal surfaces along the reef.", em("Calculated from presence (0 or 1) in replicate quadrats at each of the 22 sites in the SBC.")),
                           sidebarLayout(
                             sidebarPanel("",
                                          selectInput(inputId="locationselect",
@@ -260,7 +250,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
 
                  tabPanel("Neighbors",
                           h1("Will you be my neighbor? Evaluating how often organisms are found together."),
-                          p(""),
+                          p("Compare organismal co-occurrence across the SBC.", em("Calculated from presence (0 or 1) in replicate quadrats at all 22 sites in the SBC.")),
                           sidebarLayout(
                             sidebarPanel("",
                                          selectInput(inputId="pickaphylum",
@@ -295,10 +285,10 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
 ####################################################################
 # Create server
 server <- function(input, output){
-  mbon_url <-  a("MBON website", href="http://sbc.marinebon.org/") #create hyperlink MBON URL
+  mbon_url <-  a("data repository", href="https://portal.edirepository.org/nis/mapbrowse?scope=edi&identifier=484") #create hyperlink MBON benthic data URL
 
   output$mbon_website <- renderUI({
-    tagList("Want to learn more about the Marine Biodiversity Observation Network? Check out the", mbon_url)
+    tagList("Want to learn more about how these data were collected? Check out the", mbon_url, ".")
   }) #attach MBON URL
 
 ##**##**##**##**##**##
@@ -353,7 +343,9 @@ reef_together <- reactive({
     filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
     distinct(filename, phylum, .keep_all=TRUE) %>% #filter for unique phylum values for each plot
     filter(phylum %in% c(input$coocurring)) %>%  #filter for neighbor phyla
-    distinct(filename) #get unique plot numbers that contain the focal phylum
+    group_by(filename) %>% #group by quadrat
+    summarize(sample_size = n()) %>% #get the numer of times each quadrat has an observation (of any neighbor phylum)
+    filter(sample_size==max(sample_size)) #only keep quadrats containing all selected neighboring phyla (AKA the "max" sample size)
 })
 
 #Put it in a nice gt() table
