@@ -25,6 +25,12 @@ options(repos = BiocManager::repositories())
 #require(devtools)
 #install_version("janitor", version = "1.2.1", repos = "http://cran.us.r-project.org")
 
+#until sf() package issues are resolve, download older versions of it/dependencies!
+#install_version("sf", version = "0.8-1", repos = "http://cran.us.r-project.org")
+#install_version("lwgeom", version = "0.2-1", repos = "http://cran.us.r-project.org")
+#install_version("tmap", version = "2.3-2", repos = "http://cran.us.r-project.org")
+#install_version("stars", version = "0.4-0", repos = "http://cran.us.r-project.org"))
+
 ####################################################################
 ## Read in data
 reef <- read_csv("MBONReef_Histogram.csv")
@@ -267,15 +273,19 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                      options = list(`actions-box`=TRUE,
                                                                     `selected-text-format` = "count > 3"),
                                                      multiple = TRUE),
-                                         p(strong("ADD ~Or, pick a genus~ HERE?")),
-                                         p(strong("& APPLY COLOR SCHEME TO PHYLUM NAMES"))
+                                         #p(strong("ADD ~Or, pick a genus~ HERE?")),
+                                         br(),
+                                         br(),
+                                         h5(p(em("What is the difference between the plot and the table?"))),
+                                         p(strong("The plot"), "displays the unique number of quadrats containing the focal organism and", em("each"), "neighbor organism.", strong("The table"), "displays the unique number of quadrats containing the focal organism and", em("all"), "neighbor organisms."),
+                                         p("Thus, if a single quadrat contains the focal organism and three neighbor organisms, the plot would allocate a value of 1 for each neighbor organism (each bar on the plot), and the table would allocate a value of 1 for that quadrat (column three on the table)")
                                          ),
                             mainPanel("",
                                       p(""),
-                                      plotOutput(outputId="plot_neighbor_abundance"),
+                                      plotOutput(outputId="plot_neighbor"),
                                       br(),
                                       br(),
-                                      gt_output(outputId="neighbor_table")
+                                      gt_output(outputId="table_neighbor")
                                       )
                           )
                  )
@@ -306,12 +316,12 @@ reef_phylum <- reactive({
     filter(phylum %in% c(input$coocurring)) #select only the coocurring phyla you want to look at (BASED ON INPUT)
   })
 
-output$plot_neighbor_abundance <- renderPlot({
+output$plot_neighbor <- renderPlot({
   ggplot(reef_phylum(), aes(x=fct_rev(phylum), fill=phylum)) +
     geom_bar() +
-    scale_fill_manual(values = pal) +
+    scale_fill_manual(values = pal, guide=FALSE) + #color bars by phylum color palette, remove legend
     xlab("Phylum") +
-    ylab(paste("Abundance in plots also containing",input$pickaphylum)) +
+    ylab(paste("Abundance in quadrats also containing",input$pickaphylum)) + #reactive y label
     coord_flip() +
     theme_minimal()
    })
@@ -320,30 +330,28 @@ output$plot_neighbor_abundance <- renderPlot({
 #Find number of times focal phylum makes an appearance
 reef_focal <- reactive({
   reef_tidy %>%
-  filter(binary > "0") %>%
-  mutate(to_match = ifelse(phylum %in% input$pickaphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
-  filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
+  filter(binary > "0") %>% #filter out organisms not present
+  filter(phylum == input$pickaphylum) %>% #filter for focal phylum
   distinct(filename) #get unique plot numbers that contain the focal phylum
 })
 
 #Find number of times neighbor genera make an appearance
 reef_neighbor <- reactive({
   reef_tidy %>%
-  filter(binary > "0") %>%
-  mutate(to_match = ifelse(phylum %in% c(input$coocurring), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phyla in the plot at least once
-  filter(filename %in% to_match) %>% #if focal phyla are present, keep all observations of that plot ("filename")
-  distinct(filename)
+  filter(binary > "0") %>% #filter out organisms not present
+  filter(phylum %in% c(input$coocurring)) %>% #filter for neighbor phyla
+  distinct(filename) #get unique plot numbers that contain the focal phylum
 })
 
 #Find number of times focal genus co-occurs with neighbor genus
 reef_together <- reactive({
   reef_tidy %>%
-    filter(binary > "0") %>%
+    filter(binary > "0") %>% #filter out organisms not present
     mutate(to_match = ifelse(phylum %in% input$pickaphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
     filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
-    mutate(to_match = ifelse(phylum %in% input$coocurring, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
-    filter(filename %in% to_match) %>% 
-    distinct(filename)
+    distinct(filename, phylum, .keep_all=TRUE) %>% #filter for unique phylum values for each plot
+    filter(phylum %in% c(input$coocurring)) %>%  #filter for neighbor phyla
+    distinct(filename) #get unique plot numbers that contain the focal phylum
 })
 
 reef_table <- reactive({
@@ -353,14 +361,14 @@ reef_table <- reactive({
     gt() %>% 
     fmt_percent(columns=vars(percent_focal, percent_neighbor), decimal=1) %>% 
     tab_options(table.width = pct(90)) %>% #make the table width 80% of the page width
-    cols_label(V1=paste("Plots with",input$pickaphylum),
-               V2="Plots with neighboring phyla",
-               V3=paste("Plots with both",input$pickaphylum,"and neighboring phyla"),
+    cols_label(V1=paste("Quadrats with",input$pickaphylum),
+               V2="Quadrats with neighboring phyla",
+               V3=paste("Quadrats with both",input$pickaphylum,"and neighboring phyla"),
                percent_focal=paste("Percent", input$pickaphylum, "co-occurrs with neighboring phyla"),
                percent_neighbor=paste("Percent neighboring phyla co-occur with", input$pickaphylum))
 })
 
-output$neighbor_table <- render_gt({
+output$table_neighbor <- render_gt({
   expr = reef_table()
 })
 
