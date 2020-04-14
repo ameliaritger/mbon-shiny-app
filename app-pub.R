@@ -316,6 +316,7 @@ reef_phylum <- reactive({
     filter(phylum %in% c(input$coocurring)) #select only the coocurring phyla you want to look at (BASED ON INPUT)
   })
 
+#Plot it up
 output$plot_neighbor <- renderPlot({
   ggplot(reef_phylum(), aes(x=fct_rev(phylum), fill=phylum)) +
     geom_bar() +
@@ -323,7 +324,8 @@ output$plot_neighbor <- renderPlot({
     xlab("Phylum") +
     ylab(paste("Abundance in quadrats also containing",input$pickaphylum)) + #reactive y label
     coord_flip() +
-    theme_minimal()
+    theme_minimal() +
+    theme(text = element_text(size = 15))
    })
 
 ### Neighbor table 
@@ -354,6 +356,7 @@ reef_together <- reactive({
     distinct(filename) #get unique plot numbers that contain the focal phylum
 })
 
+#Put it in a nice gt() table
 reef_table <- reactive({
   as.data.frame(cbind(nrow(reef_focal()), nrow(reef_neighbor()), nrow(reef_together()))) %>% 
     mutate(percent_focal = V3/V1,
@@ -374,7 +377,7 @@ output$table_neighbor <- render_gt({
 
 ##**##**##**##**##**##
 
-### TAB - Community plot
+### TAB - Community
 #reactively display quadrat images for each location
 output$location_image <- renderImage({
   filename <- normalizePath(file.path('./www/', paste(input$locationselect, ".png", sep="")))
@@ -383,6 +386,7 @@ output$location_image <- renderImage({
        }, deleteFile = FALSE
 )
 
+#Community plot
 #generate reactive summary data
 reef_summary_community <- reactive({
   reef_tidy %>%
@@ -397,7 +401,7 @@ reef_summary_community <- reactive({
               sample_size = n())
 })
 
-#generate community plot
+#generate plot
 output$plot_community <- renderPlot({
   ggplot(data=reef_summary_community(), aes(x=reorder(phylum, sample_size), #order bars by descending value
                                   y=sample_size, 
@@ -407,7 +411,8 @@ output$plot_community <- renderPlot({
     coord_flip() +
     ylab(paste("Number of plots")) +
     xlab("Phylum") +
-    theme_minimal()
+    theme_minimal() +
+    theme(text = element_text(size = 15))
 })
 
 ##**##**##**##**##**##
@@ -498,6 +503,7 @@ observeEvent(input$searchaphylum,{
 })
 
 #create species tree
+#Set order of tree hierarchy
 speciesTree <- reactive(unique(reef_tidy[reef_tidy$phylum==input$phylumSelectComboTree,
                                   c("phylum", "grouped_genus", "grouped_species")]))
 
@@ -510,6 +516,7 @@ output$species_tree <- renderCollapsibleTree(
     attribute = "grouped_species",
     hierarchy = c("grouped_genus","grouped_species"),
     fill = colorTree(), #reactively fill color with phylum color palette
+    fontSize = 13,
     zoomable = FALSE
   )
 )
