@@ -124,18 +124,11 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                           column(1,
                                           imageOutput('home_image',inline = TRUE)),
                                    ),
-                          #h1(p("Welcome!")),
-                          #HTML('<center><img src="quadrat.jpg" width="600"></center>', inline=TRUE),
-                          #p(img(src = "mbon.png", height="25%", width="25%")),
-                          #h2(p("This app allows users to visualize survey data collected in kelp forest communities in the Santa Barbara Channel (SBC).")),
-                          #h3(p("Each tab allows users to explore a different aspect of the dataset.")),
                           fluidRow(column(12, align="center", 
                                           h4(uiOutput("mbon_website"))
                           )),
                           br(),
                           br(),
-                          #h4(uiOutput("mbon_website")),
-                          #p(img(src = "quadrat.jpg", height="25%", width="25%")),
                           HTML('<center><img src="mbon.png" width="500"></center>'),
                           br(),
                           br(),
@@ -300,6 +293,8 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
 ####################################################################
 # Create server
 server <- function(input, output){
+  
+### TAB - Welcome
   
   output$home_image <- renderImage({
     filename <- normalizePath(here::here('www','quadrat.jpg'))
