@@ -8,6 +8,7 @@ library(janitor)
 library(shiny)
 library(shinythemes)
 library(shinyWidgets)
+library(shinyLP)
 library(sf)
 library(tmap)
 library(vegan)
@@ -115,22 +116,36 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  
                  ## TAB
 
-                 tabPanel("About the App",
-                          h2(p("This app allows users to visualize survey data collected in kelp forest communities in the Santa Barbara Channel (SBC).")),
+                 tabPanel("About the app",
+                          fluidRow(column(10,
+                                          jumbotron("Welcome!", "This app allows users to visualize survey data collected in kelp forest communities in the Santa Barbara Channel (SBC).",button=FALSE)),
+                                   br(),
+                                   br(),
+                                          column(1,
+                                          imageOutput('home_image',inline = TRUE)),
+                                   ),
+                          #h1(p("Welcome!")),
+                          #HTML('<center><img src="quadrat.jpg" width="600"></center>', inline=TRUE),
+                          #p(img(src = "mbon.png", height="25%", width="25%")),
+                          #h2(p("This app allows users to visualize survey data collected in kelp forest communities in the Santa Barbara Channel (SBC).")),
+                          #h3(p("Each tab allows users to explore a different aspect of the dataset.")),
+                          fluidRow(column(12, align="center", 
+                                          h4(uiOutput("mbon_website"))
+                          )),
                           br(),
-                          h3(p("Each tab allows users to explore a different aspect of the dataset.")),
                           br(),
-                          h4(uiOutput("mbon_website")),
-                          p(img(src = "quadrat.jpg", height="25%", width="25%")),
-                          p(img(src = "mbon.png", height="25%", width="25%")),
-                   HTML(paste0(
-                     "<br><br><br><br><br><br>",
-                     "<script>",
-                     "var today = new Date();",
-                     "var yyyy = today.getFullYear();",
-                     "</script>",
-                     "<p style = 'text-align: center;'><small><a href='https://ameliaritger.netlify.com/' target='_blank'>Created by Amelia Ritger</a> - <script>document.write(yyyy);</script></small></p>")
-                   )
+                          #h4(uiOutput("mbon_website")),
+                          #p(img(src = "quadrat.jpg", height="25%", width="25%")),
+                          HTML('<center><img src="mbon.png" width="500"></center>'),
+                          br(),
+                          br(),
+                          br(),
+                          fluidRow(column(12, align="center", 
+                                          h5(uiOutput("github_contact"))
+                                          )),
+                          fluidRow(column(12, align="center", 
+                                          h6(uiOutput("personal_contact"))
+                          ))
                  ),
 
                  ## TAB
@@ -285,11 +300,33 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
 ####################################################################
 # Create server
 server <- function(input, output){
+  
+  output$home_image <- renderImage({
+    filename <- normalizePath(here::here('www','quadrat.jpg'))
+    
+    print(filename)
+    
+    list(src = filename,
+         width = 230)
+  }, deleteFile = FALSE)
+  
   mbon_url <-  a("data repository", href="https://portal.edirepository.org/nis/mapbrowse?scope=edi&identifier=484") #create hyperlink MBON benthic data URL
 
   output$mbon_website <- renderUI({
     tagList("Want to learn more about how these data were collected? Check out the", mbon_url, ".")
   }) #attach MBON URL
+  
+  github_url <-  a("Github", href="https://github.com/ameliaritger/mbon-shiny-app") #create hyperlink github shiny app URL
+  
+  output$github_contact <- renderUI({
+    tagList("Code and data used to create this Shiny app are available on", github_url, ".")
+  }) #attach github URL
+  
+  personal_url <-  a("app creator", href="https://ameliaritger.netlify.com") #create hyperlink github shiny app URL
+  
+  output$personal_contact <- renderUI({
+    tagList("Found an issue with the app? Have a feature you'd like to request? Reach out to the", personal_url, "!")
+  })
 
 ##**##**##**##**##**##
   
