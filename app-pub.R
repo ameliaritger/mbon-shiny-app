@@ -125,7 +125,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                           imageOutput('home_image',inline = TRUE)),
                                    ),
                           fluidRow(column(12, align="center", 
-                                          h4(uiOutput("mbon_website"))
+                                          h4(HTML('Want to learn more about how these data were collected? Check out the <a href="https://portal.edirepository.org/nis/mapbrowse?scope=edi&identifier=484" target="_blank">data repository</a>.'))
                           )),
                           br(),
                           br(),
@@ -134,10 +134,10 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                           br(),
                           br(),
                           fluidRow(column(12, align="center", 
-                                          h5(uiOutput("github_contact"))
+                                          h5(HTML('Code and data used to create this Shiny app are available on <a href="https://github.com/ameliaritger/mbon-shiny-app" target="_blank">Github</a>.'))
                                           )),
                           fluidRow(column(12, align="center", 
-                                          h6(uiOutput("personal_contact"))
+                                          h6(HTML('Found an issue with the app? Have a feature you would like to request? Reach out to the <a href="https://ameliaritger.netlify.com" target="_blank">app creator</a>!'))
                           ))
                  ),
 
@@ -171,8 +171,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             mainPanel(h3(p("Hierarchical tree of the species found in this dataset")),
                                       collapsibleTreeOutput('species_tree', height='600px') %>%
                                         withSpinner(color = "#008b8b"),
-                                      h6(p(uiOutput("nps_website"))
-                                      )
+                                      h6(HTML('With inspiration from the Biodiversity in National Parks <a href="https://abenedetti.shinyapps.io/bioNPS/" target="_blank">Shiny app</a>.'))
                             )
                           )
                  ),
@@ -305,24 +304,6 @@ server <- function(input, output){
          width = 230)
   }, deleteFile = FALSE)
   
-  mbon_url <-  a("data repository", href="https://portal.edirepository.org/nis/mapbrowse?scope=edi&identifier=484") #create hyperlink MBON benthic data URL
-
-  output$mbon_website <- renderUI({
-    tagList("Want to learn more about how these data were collected? Check out the", mbon_url, ".")
-  }) #attach MBON URL
-  
-  github_url <-  a("Github", href="https://github.com/ameliaritger/mbon-shiny-app") #create hyperlink github shiny app URL
-  
-  output$github_contact <- renderUI({
-    tagList("Code and data used to create this Shiny app are available on", github_url, ".")
-  }) #attach github URL
-  
-  personal_url <-  a("app creator", href="https://ameliaritger.netlify.com") #create hyperlink github shiny app URL
-  
-  output$personal_contact <- renderUI({
-    tagList("Found an issue with the app? Have a feature you'd like to request? Reach out to the", personal_url, "!")
-  })
-
 ##**##**##**##**##**##
   
 ### TAB - Neighbor
@@ -544,14 +525,6 @@ output$species_tree <- renderCollapsibleTree(
     zoomable = FALSE
   )
 )
-
-#credit where credit is due
-nps_url <-  a("Shiny app", href="https://abenedetti.shinyapps.io/bioNPS/")
-
-output$nps_website <- renderUI({
-  tagList("With inspiration from the Biodiversity in National Parks", nps_url)
-})
-
 }
 
 ####################################################################
