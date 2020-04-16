@@ -16,6 +16,7 @@ library(gt)
 library(leaflet)
 library(collapsibleTree)
 library(shinycssloaders)
+library(reshape2)
 
 #add functionality to publish app
 library(rsconnect)
@@ -381,7 +382,6 @@ output$table_neighbor <- render_gt({
   expr = reef_table()
 })
 
-
 #Generate heatmap
 reef_heat <- reactive({
   reef_tidy %>% 
@@ -394,15 +394,19 @@ reef_heat <- reactive({
     filter(match=="retain" | binary==1) %>% 
     select(filename, phylum, binary) %>% 
     filter(binary==1,
-           phylum %in% c(input$pickaphylum, input$coocurring)) 
+           phylum %in% c(input$pickaphylum, input$coocurring))
 })
 
-reef_heat_table <- reactive({
-  crossprod(with(reef_heat(), table(filename, phylum)))
+reef_heat_melt <- reactive({
+  crossprod(with(reef_heat(), table(filename, phylum))) %>% 
+    as_tibble(rownames = "phylum") %>% 
+    melt()
 })
 
 output$plot_heatmap <- renderPlot({
-  heatmap(x = reef_heat_table(), Colv = NA, Rowv = NA, revC=TRUE, margins = c(8,7))
+  ggplot(data=reef_heat_melt(), aes(x=phylum, y=variable, fill=value)) +
+    geom_tile(color="white") +
+    scale_fill_viridis_c(option = "B", begin = 1, end = 0.5)
 })
 
 ##**##**##**##**##**##
