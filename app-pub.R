@@ -113,22 +113,7 @@ pal <- c(
 #Create user interface
 ui <- navbarPage("Marine Biodiversity Observation Network",
                  theme = shinytheme("simplex"),
-                 
-                 ## TAB
-                 
-                 tabPanel("Test!",
-                          sidebarLayout(
-                            sidebarPanel("",
-                                         selectizeInput("testLoopInput", 
-                                                        label = "Want to learn more about an organism?", 
-                                                        choices = unique(reef_tidy$phylum),
-                                                        multiple = TRUE,
-                                                        options = list(placeholder='hihi',
-                                                                       onInitialize = I('function() { this.setValue(""); }')
-                                                        )
-                                         )),
-                          mainPanel(uiOutput('testLoop')))),
-                 
+                    
                  ## TAB
 
                  tabPanel("About the app",
@@ -287,6 +272,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                      multiple = TRUE),
                                          #p(strong("ADD ~Or, pick a genus~ HERE?")),
                                          br(),
+                                         plotOutput(outputId="plot_heatmap"),
                                          br(),
                                          h5(p(em("What is the difference between the plot and the table?"))),
                                          p(strong("The plot"), "displays the unique number of quadrats containing the focal organism and", em("each"), "neighbor organism.", strong("The table"), "displays the unique number of quadrats containing the focal organism and", em("all"), "neighbor organisms."),
@@ -307,16 +293,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
 ####################################################################
 # Create server
 server <- function(input, output){
-  
-  ### TAB - test
-  
-  testLoop<- renderUI({
-    lapply(1:length(input$testLoopInput), function(i) {
-      
-      strong(paste0('Hi, this is output B#', i),br())
-    })
-  })
-  
+
 ### TAB - Welcome
   
   output$home_image <- renderImage({
@@ -402,6 +379,30 @@ reef_table <- reactive({
 
 output$table_neighbor <- render_gt({
   expr = reef_table()
+})
+
+
+#Generate heatmap
+reef_heat <- reactive({
+  reef_tidy %>% 
+    group_by(phylum) %>% 
+    select(filename, binary, group_cols()) %>% 
+    group_by(filename) %>% 
+    distinct(filename, phylum, binary) %>% 
+    group_by(filename, phylum) %>%
+    mutate(match = ifelse(length(phylum)==2, "remove", "retain")) %>% 
+    filter(match=="retain" | binary==1) %>% 
+    select(filename, phylum, binary) %>% 
+    filter(binary==1,
+           phylum %in% c(input$pickaphylum, input$coocurring)) 
+})
+
+reef_heat_table <- reactive({
+  crossprod(with(reef_heat(), table(filename, phylum)))
+})
+
+output$plot_heatmap <- renderPlot({
+  heatmap(x = reef_heat_table(), Colv = NA, Rowv = NA, revC=TRUE, margins = c(8,7))
 })
 
 ##**##**##**##**##**##
