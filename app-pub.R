@@ -115,6 +115,21 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  theme = shinytheme("simplex"),
                  
                  ## TAB
+                 
+                 tabPanel("Test!",
+                          sidebarLayout(
+                            sidebarPanel("",
+                                         selectizeInput("testLoopInput", 
+                                                        label = "Want to learn more about an organism?", 
+                                                        choices = unique(reef_tidy$phylum),
+                                                        multiple = TRUE,
+                                                        options = list(placeholder='hihi',
+                                                                       onInitialize = I('function() { this.setValue(""); }')
+                                                        )
+                                         )),
+                          mainPanel(uiOutput('testLoop')))),
+                 
+                 ## TAB
 
                  tabPanel("About the app",
                           fluidRow(column(10,
@@ -293,6 +308,15 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
 # Create server
 server <- function(input, output){
   
+  ### TAB - test
+  
+  testLoop<- renderUI({
+    lapply(1:length(input$testLoopInput), function(i) {
+      
+      strong(paste0('Hi, this is output B#', i),br())
+    })
+  })
+  
 ### TAB - Welcome
   
   output$home_image <- renderImage({
@@ -321,7 +345,7 @@ reef_phylum <- reactive({
 
 #Plot it up
 output$plot_neighbor <- renderPlot({
-  ggplot(reef_phylum(), aes(x=fct_rev(phylum), fill=phylum)) +
+  ggplot(reef_phylum(), aes(x=fct_rev(forcats::fct_infreq(phylum)), fill=phylum)) +
     geom_bar() +
     scale_fill_manual(values = pal, guide=FALSE) + #color bars by phylum color palette, remove legend
     xlab("Phylum") +
