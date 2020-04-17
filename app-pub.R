@@ -17,6 +17,7 @@ library(leaflet)
 library(collapsibleTree)
 library(shinycssloaders)
 library(reshape2)
+library(plotly)
 
 #add functionality to publish app
 library(rsconnect)
@@ -273,7 +274,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                      multiple = TRUE),
                                          #p(strong("ADD ~Or, pick a genus~ HERE?")),
                                          br(),
-                                         plotOutput(outputId="plot_heatmap"),
+                                         plotlyOutput(outputId="plot_heatmap"),
                                          br(),
                                          h5(p(em("What is the difference between the plot and the table?"))),
                                          p(strong("The plot"), "displays the unique number of quadrats containing the focal organism and", em("each"), "neighbor organism.", strong("The table"), "displays the unique number of quadrats containing the focal organism and", em("all"), "neighbor organisms."),
@@ -403,10 +404,18 @@ reef_heat_melt <- reactive({
     melt()
 })
 
-output$plot_heatmap <- renderPlot({
-  ggplot(data=reef_heat_melt(), aes(x=phylum, y=variable, fill=value)) +
-    geom_tile(color="white") +
-    scale_fill_viridis_c(option = "B", begin = 1, end = 0.5)
+output$plot_heatmap <- renderPlotly({
+  ggplotly(ggplot(data=reef_heat_melt(), aes(x=phylum, y=variable, fill=value)) +
+             geom_tile() +
+             scale_fill_viridis_c(option = "B", begin = 1, end = 0.45) +
+             theme_minimal() +
+             theme(axis.text.x = element_text(angle = 35, hjust = 1, vjust = 1),
+                   axis.title = element_blank(),
+                   plot.margin=grid::unit(c(0,0,0,0), "mm")) +
+             xlab("phylum"), tooltip="all")
+  # ggplot(data=reef_heat_melt(), aes(x=phylum, y=variable, fill=value)) +
+  #   geom_tile(color="white") +
+  #   scale_fill_viridis_c(option = "B", begin = 1, end = 0.5)
 })
 
 ##**##**##**##**##**##
