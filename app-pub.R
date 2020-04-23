@@ -87,7 +87,7 @@ reef_vegan_subset <- reef_vegan %>%
   pivot_wider(names_from=grouped_species, values_from=mean_count) %>% 
   select(`Abietinaria spp`:`Zonaria farlowii`)
 
-Diversity <- diversity(reef_vegan_subset)
+Diversity <- diversity(reef_vegan_subset, index="shannon")
 Richness <- specnumber(reef_vegan_subset)
 
 #Combine all of this information - location, lat/long, diversity/richness
@@ -194,10 +194,9 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          br(),
                                          h5(p(em("How is each term calculated?"))),
                                          h6(p(strong("Richness:"))),
-                                         h6(p("The number of species within a community")),
+                                         h6(p("The number of species within a community.")),
                                          h6(p(strong("Diversity:"))),
-                                         h6(p("The number of species within a community (richness) and the relative abundance of each species (evenness)"))
-                            ),
+                                         h6(p("The number of species within a community (richness) and the relative abundance of each species (evenness).", em(HTML('Here, the <a href="https://en.wikipedia.org/wiki/Diversity_index#Shannon_index" target="_blank">Shannon-Wiener Index</a> is used.'))))                            ),
                             mainPanel(h4(p("")),
                                       leafletOutput("map_index"),
                             )
@@ -286,7 +285,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          p("Thus, if a single quadrat contains the focal organism and three neighbor organisms, the plot would allocate a value of 1 for each neighbor organism (each bar on the plot), and the table would allocate a value of 1 for that quadrat (column three on the table)"),
                                          conditionalPanel(
                                            condition = "input.pickaplot == '1'",
-                                           p("Like the plot,", strong("the heat map"), "displays the unique number of quadrats containing the focal organism and each neighbor organism. The darker the shade of the box, the more quadrats containing both the focal organism and the neighbor organism.")),
+                                           p("Like the plot,", strong("the heat map"), "displays the unique number of quadrats containing the focal organism and each neighbor organism, as well as the focal organism. The darker the shade of the box, the more quadrats containing both the focal organism and the neighbor organism (or focal organism.")),
                                          ),
                             mainPanel("",
                                       p(""),
