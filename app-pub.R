@@ -240,14 +240,16 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                       label = "Pick an orientation!",
                                                       choices = c("All"="l", "Vertical"="vertical", "Horizontal"="horizontal")
                                          ),
-                                         h6(p(em("Note: not all locations have both vertical and horizontal orientations"))),
+                                         h6(p(em("Note: not all locations have both vertical and horizontal orientations."))),
                                          fluidRow(column(10, align="left", 
-                                                         checkboxInput("pickasankey", label = "Display Sankey diagram", value = FALSE)),
+                                                         checkboxInput("pickasankey", label = "Display Sankey diagram (interactive)", value = FALSE)),
                                          column(7, align="left",
                                                          conditionalPanel(condition = "input.pickasankey == '1'",
-                                                                          numericInput('sankeynumber', 'Pick the number of top phyla to display', 1, min = 1, max = 5)))
+                                                                          numericInput('sankeynumber', 'Pick the number of top phyla to display', 1, min = 1, max = 5))),
+                                         column(12, align="left",
+                                                conditionalPanel(condition = "input.pickasankey == '1'",
+                                                                h6(p(em("The width of the bands in a", HTML('<a href="https://en.wikipedia.org/wiki/Sankey_diagram" target="_blank">Sankey diagram</a>'), "are proportional to abundance.")))))
                                                   ),
-                                         br(),
                                          h5(p("Curious what a quadrat from the location looks like?")),
                                          tags$head(tags$style(
                                            type="text/css",
