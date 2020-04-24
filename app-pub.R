@@ -18,6 +18,7 @@ library(collapsibleTree)
 library(shinycssloaders)
 library(reshape2)
 library(plotly)
+library(networkD3)
 
 #add functionality to publish app
 library(rsconnect)
@@ -249,7 +250,8 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          imageOutput("location_image")
                             ),
                             mainPanel("",
-                                      plotOutput(outputId="plot_community")
+                                      plotOutput(outputId="plot_community"),
+                                      sankeyNetworkOutput("sankey_plot")
                             )
                           )
                  ),
@@ -463,6 +465,53 @@ output$plot_community <- renderPlot({
     xlab("Phylum") +
     theme_minimal() +
     theme(text = element_text(size = 15))
+})
+
+#Sankey diagram
+#Prep data
+reef_top <- reactive({
+  reef_summary_community() %>% 
+  group_by(phylum) %>% 
+  tally(sample_size) %>% 
+  top_n(3)
+})
+
+reef_sankey <- reactive({
+  reef_tidy %>%
+  filter(binary > "0") %>% #filter out species not present
+  filter(location==input$locationselect, #filter for location of interest
+          str_detect(orientation,pattern=input$orientationselect)) %>% 
+  group_by(phylum, genus) %>%
+  summarize(`mean abundance` = mean(value)) %>% 
+  filter(phylum %in% c(reef_top()$phylum)) %>% 
+  select(phylum, genus, `mean abundance`)
+})
+
+reef_names <- reactive({
+  reef_sankey() %>% 
+  select(phylum, genus)
+})
+
+node_names <- reactive({
+  factor(sort(unique(as.character(unname(unlist(reef_names()))))))
+})
+
+nodes <- reactive({
+  data.frame(name = node_names())
+})
+
+links <- reactive({
+  data.frame(source = match(reef_sankey()$phylum, node_names()) - 1, 
+                    target = match(reef_sankey()$genus, node_names()) - 1,
+                    value = reef_sankey()$`mean abundance`)
+})
+
+#Sankey diagram
+output$sankey_plot <- renderSankeyNetwork({
+  sankeyNetwork(Links = links(), Nodes = nodes(),
+              Source = "source", Target = "target",
+              Value = "value", NodeID = "name",
+              fontSize = 12, nodeWidth = 30)
 })
 
 ##**##**##**##**##**##
