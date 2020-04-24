@@ -1,0 +1,64 @@
+---
+title: "Sankey diagram practice"
+author: "Amelia Ritger"
+date: "4/23/2020"
+output: html_document
+---
+
+Create a Senke diagram for the community data
+```{r}
+library(d3Network)
+
+reef_summary <- reef_tidy %>%
+  filter(binary > "0") %>% #filter out species not present
+   filter(location=="Solimar") %>% 
+  group_by(phylum, genus) %>% #group by location, then lat/long (and then orientation for vert/horizontal comparisons)
+  summarize(`mean abundance` = mean(value), #get the mean count
+            median_count = median(value),
+            sd_count = sd(value), #get the s.d. count
+            iqr = IQR(value), #get the interquartile range for the count
+            sample_size = n())
+
+pal <- c(
+  "Annelida" = "#D2691E",
+  "Arthropoda" = "#CDCDB4", 
+  "Chlorophyta" = "#3CB371", 
+  "Chordata" = "#EE9A00",
+  "Cnidaria" = "#6CA6CD", 
+  "Echinodermata" = "#FF6347", 
+  "Ectoprocta" = "#F4A460", 
+  "Fish" = "#CD3700", 
+  "Heterokontophyta" = "#6B8E23", 
+  "Mollusca" = "#708090", 
+  "Phoronida" = "#FAFAD2",
+  "Porifera" = "#EEDD82", 
+  "Rhodophyta" = "#DB7093"
+)
+
+library(networkD3)
+
+reef_sankey <- reef_summary %>% 
+  filter(phylum %in% c("Cnidaria", "Annelida")) %>% 
+  select(phylum, genus, `mean abundance`)
+  
+reef_names <- reef_sankey %>% 
+  select(phylum, genus)
+
+node_names <- factor(sort(unique(as.character(unname(unlist(reef_names))))))
+nodes <- data.frame(name = node_names)
+links <- data.frame(source = match(reef_sankey$phylum, node_names) - 1, 
+                    target = match(reef_sankey$genus, node_names) - 1,
+                    value = reef_sankey$`mean abundance`)
+links <- links[!is.na(links$source), ]
+links$group <- reef_sankey$phylum
+
+links_color <- links %>% 
+  merge(pal, links, by='shorthand')
+
+
+sankeyNetwork(Links = links2, Nodes = nodes2,
+              Source = "source", Target = "target",
+              Value = "value", NodeID = "name",
+              fontSize = 12, nodeWidth = 30,
+              colourScale = pal)
+```
