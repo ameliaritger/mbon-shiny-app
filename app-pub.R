@@ -250,6 +250,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                 conditionalPanel(condition = "input.pickasankey == '1'",
                                                                 h6(p(em("The width of the bands in a", HTML('<a href="https://en.wikipedia.org/wiki/Sankey_diagram" target="_blank">Sankey diagram</a>'), "are proportional to abundance.")))))
                                                   ),
+                                         br(),
                                          h5(p("Curious what a quadrat from the location looks like?")),
                                          tags$head(tags$style(
                                            type="text/css",
@@ -511,17 +512,23 @@ nodes <- reactive({
 })
 
 links <- reactive({
-  data.frame(source = match(reef_sankey()$phylum, node_names()) - 1, 
-                    target = match(reef_sankey()$species, node_names()) - 1,
-                    value = reef_sankey()$`mean abundance`)
+  data.frame(source = match(reef_sankey()$phylum, node_names()) - 1,
+             target = match(reef_sankey()$species, node_names()) - 1,
+             value = reef_sankey()$`mean abundance`,
+             group = reef_sankey()$phylum)
 })
+
+#Set color palette that can be recognized by sankeyNetwork
+my_color <- 'd3.scaleOrdinal() .domain(["Annelida","Arthropoda", "Chlorophyta","Chordata","Cnidaria","Echinodermata","Ectoprocta","Fish","Heterokontophyta","Mollusca","Phoronida","Porifera","Rhodophyta"]) .range(["#D2691E", "#CDCDB4", "#3CB371", "#EE9A00","#6CA6CD", "#FF6347", "#F4A460", "#CD3700", "#6B8E23", "#708090", "#FAFAD2","#EEDD82", "#DB7093"])'
 
 #Sankey diagram
 output$sankey_plot <- renderSankeyNetwork({
   sankeyNetwork(Links = links(), Nodes = nodes(),
               Source = "source", Target = "target",
               Value = "value", NodeID = "name",
-              fontSize = 12, nodeWidth = 30)
+              fontSize = 12, nodeWidth = 30,
+              colourScale = my_color,
+              LinkGroup="group", NodeGroup = NULL)
 })
 
 ##**##**##**##**##**##
