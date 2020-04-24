@@ -241,6 +241,12 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                       choices = c("All"="l", "Vertical"="vertical", "Horizontal"="horizontal")
                                          ),
                                          h6(p(em("Note: not all locations have both vertical and horizontal orientations"))),
+                                         fluidRow(column(10, align="left", 
+                                                         checkboxInput("pickasankey", label = "Display Sankey diagram", value = FALSE)),
+                                         column(7, align="left",
+                                                         conditionalPanel(condition = "input.pickasankey == '1'",
+                                                                          numericInput('sankeynumber', 'Pick the number of top phyla to display', 1, min = 1, max = 5)))
+                                                  ),
                                          br(),
                                          h5(p("Curious what a quadrat from the location looks like?")),
                                          tags$head(tags$style(
@@ -251,7 +257,9 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             ),
                             mainPanel("",
                                       plotOutput(outputId="plot_community"),
-                                      sankeyNetworkOutput("sankey_plot")
+                                      conditionalPanel(
+                                        condition = "input.pickasankey == '1'",
+                                        sankeyNetworkOutput("sankey_plot"))
                             )
                           )
                  ),
@@ -473,7 +481,7 @@ reef_top <- reactive({
   reef_summary_community() %>% 
   group_by(phylum) %>% 
   tally(sample_size) %>% 
-  top_n(3)
+  top_n(input$sankeynumber)
 })
 
 reef_sankey <- reactive({
@@ -481,15 +489,15 @@ reef_sankey <- reactive({
   filter(binary > "0") %>% #filter out species not present
   filter(location==input$locationselect, #filter for location of interest
           str_detect(orientation,pattern=input$orientationselect)) %>% 
-  group_by(phylum, genus) %>%
+  group_by(phylum, species) %>%
   summarize(`mean abundance` = mean(value)) %>% 
   filter(phylum %in% c(reef_top()$phylum)) %>% 
-  select(phylum, genus, `mean abundance`)
+  select(phylum, species, `mean abundance`)
 })
 
 reef_names <- reactive({
   reef_sankey() %>% 
-  select(phylum, genus)
+  select(phylum, species)
 })
 
 node_names <- reactive({
@@ -502,7 +510,7 @@ nodes <- reactive({
 
 links <- reactive({
   data.frame(source = match(reef_sankey()$phylum, node_names()) - 1, 
-                    target = match(reef_sankey()$genus, node_names()) - 1,
+                    target = match(reef_sankey()$species, node_names()) - 1,
                     value = reef_sankey()$`mean abundance`)
 })
 
