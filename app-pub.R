@@ -197,7 +197,8 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          h6(p(strong("Richness:"))),
                                          h6(p("The number of species within a community.")),
                                          h6(p(strong("Diversity:"))),
-                                         h6(p("The number of species within a community (richness) and the relative abundance of each species (evenness).", em(HTML('Here, the <a href="https://en.wikipedia.org/wiki/Diversity_index#Shannon_index" target="_blank">Shannon-Wiener Index</a> is used.'))))                            ),
+                                         h6(p("The number of species within a community (richness) and the relative abundance of each species (evenness).", em(HTML('Here, we used the <a href="https://en.wikipedia.org/wiki/Diversity_index#Shannon_index" target="_blank">Shannon-Wiener Index</a>.'))))
+                                         ),
                             mainPanel(h4(p("")),
                                       leafletOutput("map_index"),
                             )
@@ -245,7 +246,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                          checkboxInput("pickasankey", label = "Display Sankey diagram (interactive)", value = FALSE)),
                                          column(7, align="left",
                                                          conditionalPanel(condition = "input.pickasankey == '1'",
-                                                                          numericInput('sankeynumber', 'Pick the number of top phyla to display', 1, min = 1, max = 5))),
+                                                                          numericInput('sankeynumber', 'Pick the number of top phyla to display!', 1, min = 1, max = 5))),
                                          column(12, align="left",
                                                 conditionalPanel(condition = "input.pickasankey == '1'",
                                                                 h6(p(em("The width of the bands in a", HTML('<a href="https://en.wikipedia.org/wiki/Sankey_diagram" target="_blank">Sankey diagram</a>'), "are proportional to abundance.")))))
