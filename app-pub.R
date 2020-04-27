@@ -126,14 +126,13 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  ## TAB
 
                  tabPanel("About the app",
-                          fluidRow(column(10,
-                                          jumbotron("Welcome!", "This app allows users to visualize survey data collected in kelp forest communities in the Santa Barbara Channel (SBC).",button=FALSE)),
+                          fluidRow(column(12,
+                                          jumbotron("Welcome!", "This app allows users to visualize benthic survey data collected in kelp forest communities in the Santa Barbara Channel (SBC).",button=FALSE)),
                                    br(),
                                    br(),
-                                   column(1,
-                                          imageOutput('home_image',inline = TRUE)),
                                    ),
                           fluidRow(column(12, align="center", 
+                                          #imageOutput('home_image',inline = TRUE),
                                           h4(HTML('Want to learn more about how these data were collected? Check out the <a href="https://portal.edirepository.org/nis/mapbrowse?scope=edi&identifier=484" target="_blank">data repository</a>.'))
                           )),
                           br(),
@@ -180,6 +179,8 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             mainPanel(h3(p("Hierarchical tree of the species found in this dataset")),
                                       collapsibleTreeOutput('species_tree', height='600px') %>%
                                         withSpinner(color = "#008b8b"),
+                                      br(),
+                                      br(),
                                       h6(HTML('With inspiration from the Biodiversity in National Parks <a href="https://abenedetti.shinyapps.io/bioNPS/" target="_blank">Shiny app</a>.'))
                             )
                           )
@@ -250,7 +251,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          h6(p(em("Note: not all locations have both vertical and horizontal orientations."))),
                                          fluidRow(column(10, align="left", 
                                                          checkboxInput("pickasankey", label = "Display Sankey diagram (interactive)", value = FALSE)),
-                                         column(7, align="left",
+                                         column(10, align="left",
                                                          conditionalPanel(condition = "input.pickasankey == '1'",
                                                                           numericInput('sankeynumber', 'Pick the number of top phyla to display!', 1, min = 1, max = 5))),
                                          column(12, align="left",
@@ -267,6 +268,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                             ),
                             mainPanel("",
                                       plotOutput(outputId="plot_community"),
+                                      br(),
                                       conditionalPanel(
                                         condition = "input.pickasankey == '1'",
                                         sankeyNetworkOutput("sankey_plot"))
@@ -291,13 +293,10 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                      options = list(`actions-box`=TRUE,
                                                                     `selected-text-format` = "count > 3"),
                                                      multiple = TRUE),
-                                         fluidRow(column(8, align="left", 
+                                         fluidRow(column(10, align="left", 
                                                          checkboxInput("pickaplot", label = "Display heat map (interactive)", value = FALSE))),
                                          #p(strong("ADD ~Or, pick a genus~ HERE?")),
                                          br(),
-                                         conditionalPanel(
-                                           condition = "input.pickaplot == '1'",
-                                           plotlyOutput(outputId="plot_heatmap")),
                                          #plotlyOutput(outputId="plot_heatmap"),
                                          br(),
                                          h5(p(em("What is the difference between the plot and the table?"))),
@@ -312,7 +311,11 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                       plotOutput(outputId="plot_neighbor"),
                                       br(),
                                       br(),
-                                      gt_output(outputId="table_neighbor")
+                                      gt_output(outputId="table_neighbor"),
+                                      br(),
+                                      conditionalPanel(
+                                        condition = "input.pickaplot == '1'",
+                                        plotlyOutput(outputId="plot_heatmap"))
                                       )
                           )
                  )
@@ -325,14 +328,14 @@ server <- function(input, output){
 
 ### TAB - Welcome
   
-  output$home_image <- renderImage({
-    filename <- normalizePath(here::here('www','quadrat.jpg'))
+  #output$home_image <- renderImage({
+  #  filename <- normalizePath(here::here('www','quadrat.jpg'))
     
-    print(filename)
+  #  print(filename)
     
-    list(src = filename,
-         width = 230)
-  }, deleteFile = FALSE)
+  #  list(src = filename,
+  #       width = 300)
+  #}, deleteFile = FALSE)
   
 ##**##**##**##**##**##
   
