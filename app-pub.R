@@ -73,10 +73,6 @@ reef_tidy <- reef_tidy %>%
   mutate(grouped_species = ifelse(str_detect(grouped_species, pattern = "Sectioned"), "Sectioned worms", ifelse(str_detect(grouped_species, pattern = "Solitary"), "Solitary worms", ifelse(str_detect(grouped_species, pattern = "Celleporella"), "Celleporella 1", grouped_species)))) %>%
   mutate(grouped_genus = ifelse(str_detect(grouped_genus, pattern = "Sectioned"), "Other Worms", ifelse(str_detect(grouped_genus, pattern = "Solitary"), "Other Worms", ifelse(str_detect(grouped_genus, pattern = "Barnacles"), "Other Barnacles", ifelse(str_detect(grouped_genus, pattern = "Zigzag"), "Other Hydroids", ifelse(str_detect(grouped_genus, pattern = "Zoanthid"), "Other Zoanthids", grouped_genus))))))
 
-new <- reef_tidy %>% 
-  filter(str_detect(reef_tidy$grouped_genus, pattern = "Algae"))
-  
-
 #Create separate dataframe of just latitude, longitude, and locations (use for later plotting species diversity/richness at each location)
 reef_location <- reef_tidy %>% 
   distinct(location, latitude, longitude)
@@ -196,6 +192,10 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          radioButtons(inputId="pickanindex",
                                                       label="Pick an output!",
                                                       choices=c("Richness","Diversity")
+                                         ),
+                                         radioButtons(inputId = "mpaselect", 
+                                                      label = "Filter for Marine Protected Areas!",
+                                                      choices = c("All"="p", "MPA"="mpa", "Non-MPA"="unprotected")
                                          ),
                                          br(),
                                          plotOutput(outputId="plot_index"),
@@ -586,14 +586,16 @@ output$map_abundance <- renderLeaflet({
 ### TAB  - Diversity map
 #make vegan data reactive
 reef_vegan_sf <- reactive({
-  reef_vegan %>% 
-    st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
+  reef_vegan %>%
+  mutate(mpa = ifelse(location %in% c("Rodes", "Yellowbank"), "mpa", "unprotected")) %>% #add column for MPA versus non-MPA sites
+  filter(str_detect(mpa,pattern=input$mpaselect)) %>% #filter for orientation of interest
+  st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
 })
 
 #create index map
 output$map_index <- renderLeaflet({
   reef_map_index <- tm_basemap("Esri.WorldImagery") +
-    tm_shape(reef_vegan_sf()) +
+    tm_shape(reef_vegan_sf(), bbox = coord_sbc) +
     tm_symbols(id="location", col = input$pickanindex, size = input$pickanindex, scale=2, #point size corresponds to value
                palette = "inferno", contrast = c(1,0.5)) #set viridis palette to match plot
   
