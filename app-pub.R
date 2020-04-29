@@ -197,7 +197,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                       label = "Filter for Marine Protected Areas!",
                                                       choices = c("All"="p", "MPA"="mpa", "Non-MPA"="unprotected")
                                          ),
-                                         checkboxGroupInput("pickanmpa", label = "Display only MPA sites", choices= c("MPA"="mpa", "Non-MPA"="unprotected"), selected = c("mpa", "unprotected")),
+                                         checkboxGroupInput("pickanmpa", label = "Display only Marine Protected Areas!", choices= c("MPA"="unprotected")),
                                          br(),
                                          plotOutput(outputId="plot_index"),
                                          br(),
@@ -590,7 +590,7 @@ reef_vegan_sf <- reactive({
   reef_vegan %>%
   mutate(mpa = ifelse(location %in% c("Rodes", "Yellowbank"), "mpa", "unprotected")) %>% #add column for MPA versus non-MPA sites
   #filter(str_detect(mpa,pattern=input$mpaselect)) %>% #filter for orientation of interest
-    filter(mpa %in% c(input$pickanmpa)) %>% 
+    filter(!mpa %in% c(input$pickanmpa)) %>% 
   st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
 })
 
