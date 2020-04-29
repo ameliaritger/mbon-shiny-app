@@ -193,11 +193,11 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                       label="Pick an output!",
                                                       choices=c("Richness","Diversity")
                                          ),
-                                         radioButtons(inputId = "mpaselect", 
-                                                      label = "Filter for Marine Protected Areas!",
-                                                      choices = c("All"="p", "MPA"="mpa", "Non-MPA"="unprotected")
-                                         ),
-                                         checkboxGroupInput("pickanmpa", label = "Display only Marine Protected Areas!", choices= c("MPA"="unprotected")),
+                                         # radioButtons(inputId = "mpaselect", 
+                                         #              label = "Filter for Marine Protected Areas!",
+                                         #              choices = c("All"="p", "MPA"="mpa", "Non-MPA"="unprotected")
+                                         # ),
+                                         checkboxGroupInput("mpaselect_diversity", label = "", choices= c("Display only Marine Protected Areas (MPAs)"="unprotected")), #be sneaky so you can filter out unprotected areas
                                          br(),
                                          plotOutput(outputId="plot_index"),
                                          br(),
@@ -225,6 +225,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                         choices = sort(c(unique(reef_tidy$grouped_species), unique(reef_tidy$phylum))),
                                                         multiple = FALSE,
                                                         selected = 'Annelida'),
+                                         checkboxGroupInput("mpaselect_abundance", label = "", choices= c("Display only Marine Protected Areas (MPAs)"="unprotected")), #be sneaky so you can filter out unprotected areas
                                          br(),
                                          plotOutput(outputId="plot_abundance"),
                                          ),
@@ -553,7 +554,10 @@ reef_summary_abundance <- reactive({
     group_by(location) %>% #group by location
     summarize(Abundance = mean(value), #get the MEAN count
               sd_count = sd(value), #get the s.d. count
-              sample_size = n())  #get the sample size
+              sample_size = n()) %>%  #get the sample size
+    mutate(mpa = ifelse(location %in% c("Rodes", "Yellowbank"), "mpa", "unprotected")) %>% #add column for MPA versus non-MPA sites
+    #filter(str_detect(mpa,pattern=input$mpaselect)) %>% #filter for orientation of interest
+    filter(!mpa %in% c(input$mpaselect_abundance))
 })
 
 #create abundance plot
@@ -590,7 +594,7 @@ reef_vegan_sf <- reactive({
   reef_vegan %>%
   mutate(mpa = ifelse(location %in% c("Rodes", "Yellowbank"), "mpa", "unprotected")) %>% #add column for MPA versus non-MPA sites
   #filter(str_detect(mpa,pattern=input$mpaselect)) %>% #filter for orientation of interest
-    filter(!mpa %in% c(input$pickanmpa)) %>% 
+    filter(!mpa %in% c(input$mpaselect_diversity)) %>% 
   st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
 })
 
