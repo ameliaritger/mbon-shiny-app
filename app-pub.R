@@ -114,6 +114,9 @@ pal <- c(
   "Rhodophyta" = "#DB7093"
 )
 
+#Generate list of MPA sites
+mpa_sites <- c("Anacapa Landing", "Arroyo Quemado", "Carp Reef", "Cathedral Cove", "Gull Island", "IV Reef", "Naples", "West-End & Cat Rock")
+
 ####################################################################
 #Create user interface
 ui <- navbarPage("Marine Biodiversity Observation Network",
@@ -555,7 +558,7 @@ reef_summary_abundance <- reactive({
     summarize(Abundance = mean(value), #get the MEAN count
               sd_count = sd(value), #get the s.d. count
               sample_size = n()) %>%  #get the sample size
-    mutate(mpa = ifelse(location %in% c("Rodes", "Yellowbank"), "mpa", "unprotected")) %>% #add column for MPA versus non-MPA sites
+    mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected")) %>% #add column for MPA versus non-MPA sites
     #filter(str_detect(mpa,pattern=input$mpaselect)) %>% #filter for orientation of interest
     filter(!mpa %in% c(input$mpaselect_abundance))
 })
@@ -592,7 +595,7 @@ output$map_abundance <- renderLeaflet({
 #make vegan data reactive
 reef_vegan_sf <- reactive({
   reef_vegan %>%
-  mutate(mpa = ifelse(location %in% c("Rodes", "Yellowbank"), "mpa", "unprotected")) %>% #add column for MPA versus non-MPA sites
+  mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected")) %>% #add column for MPA versus non-MPA sites
   #filter(str_detect(mpa,pattern=input$mpaselect)) %>% #filter for orientation of interest
     filter(!mpa %in% c(input$mpaselect_diversity)) %>% 
   st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
