@@ -8,6 +8,7 @@ library(janitor)
 library(shiny)
 library(shinythemes)
 library(shinyWidgets)
+library(shinyLP)
 library(sf)
 library(tmap)
 library(vegan)
@@ -15,6 +16,9 @@ library(gt)
 library(leaflet)
 library(collapsibleTree)
 library(shinycssloaders)
+library(reshape2)
+library(plotly)
+library(networkD3)
 
 #add functionality to publish app
 library(rsconnect)
@@ -24,6 +28,12 @@ options(repos = BiocManager::repositories())
 #until janitor() package issues are resolve, download older version of it!
 #require(devtools)
 #install_version("janitor", version = "1.2.1", repos = "http://cran.us.r-project.org")
+
+#until sf() package issues are resolve, download older versions of it/dependencies!
+#install_version("sf", version = "0.8-1", repos = "http://cran.us.r-project.org")
+#install_version("lwgeom", version = "0.2-1", repos = "http://cran.us.r-project.org")
+#install_version("tmap", version = "2.3-2", repos = "http://cran.us.r-project.org")
+#install_version("stars", version = "0.4-0", repos = "http://cran.us.r-project.org"))
 
 ####################################################################
 ## Read in data
@@ -56,10 +66,12 @@ reef_tidy <- reef_tidy %>%
 
 #Now time for some massive if, else statements to group organisms not identified to species
 reef_tidy <- reef_tidy %>% 
-  mutate(grouped_species = ifelse(str_detect(species, pattern = " worm"), "Other worms", ifelse(str_detect(species, pattern = "phoronid"), "Other worms", ifelse(str_detect(species, pattern = "tubeworm"), "Tubeworms", ifelse(str_detect(species, pattern = "algae"), "Other Algaes", ifelse(str_detect(species, pattern = "Filamentous"), "Other Algaes", ifelse(str_detect(species, pattern = "turf"), "Other Algaes", ifelse(str_detect(species, pattern = "blade"), "Other Algaes", ifelse(str_detect(species, pattern = "tunicate"), "Other Tunicates", ifelse(str_detect(species, pattern = "anemone"), "Other anemones", ifelse(str_detect(species, pattern = "bryozoan"), "Other bryozoans", ifelse(str_detect(species, pattern = "White fan"), "Other bryozoans", ifelse(str_detect(species, pattern = "sponge"), "Other Sponges", ifelse(str_detect(species, pattern = "Orange encrusting"), "Other Sponges", ifelse(str_detect(species, pattern = "Haliclona sp"), "Other Sponges", ifelse(str_detect(species, pattern = "zigzag"), "Other Hydroids", species)))))))))))))))) %>%
-  mutate(grouped_genus = ifelse(str_detect(grouped_species, pattern = "Other"), grouped_species, ifelse(str_detect(grouped_species, pattern = "orange"), grouped_species, ifelse(str_detect(grouped_species, pattern = "White"), grouped_species, ifelse(str_detect(grouped_species, pattern = "encrusting"), grouped_species, ifelse(str_detect(grouped_species, pattern = "zigzag"), grouped_species, ifelse(str_detect(grouped_species, pattern = "solitary"), grouped_species, ifelse(str_detect(grouped_species, pattern = "sectioned"), grouped_species, genus)))))))) %>% #do the same for genus
+  mutate(grouped_species = ifelse(str_detect(species, pattern = " worm"), "Other worms", ifelse(str_detect(species, pattern = "Filamentous"), "Other Algaes", ifelse(str_detect(species, pattern = "turf"), "Other Algaes", ifelse(str_detect(species, pattern = "blade"), "Other Algaes", ifelse(str_detect(species, pattern = "tunicate"), "Other Tunicates", ifelse(str_detect(species, pattern = "anemone"), "Other anemones", ifelse(str_detect(species, pattern = "bryozoan"), "Other bryozoans", ifelse(str_detect(species, pattern = "White fan"), "Other bryozoans", ifelse(str_detect(species, pattern = "sponge"), "Other Sponges", ifelse(str_detect(species, pattern = "Orange encrusting"), "Other Sponges", ifelse(str_detect(species, pattern = "Haliclona sp"), "Other Sponges", ifelse(str_detect(species, pattern = "zigzag"), "Other Hydroids", species))))))))))))) %>%
+  mutate(grouped_genus = ifelse(str_detect(grouped_species, pattern = "Other"), grouped_species, ifelse(str_detect(grouped_species, pattern = "orange"), grouped_species, ifelse(str_detect(grouped_species, pattern = "White"), grouped_species, ifelse(str_detect(grouped_species, pattern = "Encrusting"), "Other Algaes", ifelse(str_detect(grouped_species, pattern = "zigzag"), grouped_species, ifelse(str_detect(grouped_species, pattern = "solitary"), grouped_species, ifelse(str_detect(grouped_species, pattern = "sectioned"), grouped_species, genus)))))))) %>% #do the same for genus
   mutate(grouped_genus = str_to_title(grouped_genus)) %>%  #capitalize genus name
-  mutate(phylum = str_to_title(phylum)) #capitalize phylum name
+  mutate(phylum = str_to_title(phylum)) %>% #capitalize phylum name
+  mutate(grouped_species = ifelse(str_detect(grouped_species, pattern = "Sectioned"), "Sectioned worms", ifelse(str_detect(grouped_species, pattern = "Solitary"), "Solitary worms", ifelse(str_detect(grouped_species, pattern = "Celleporella"), "Celleporella 1", grouped_species)))) %>%
+  mutate(grouped_genus = ifelse(str_detect(grouped_genus, pattern = "Sectioned"), "Other Worms", ifelse(str_detect(grouped_genus, pattern = "Solitary"), "Other Worms", ifelse(str_detect(grouped_genus, pattern = "Barnacles"), "Other Barnacles", ifelse(str_detect(grouped_genus, pattern = "Zigzag"), "Other Hydroids", ifelse(str_detect(grouped_genus, pattern = "Zoanthid"), "Other Zoanthids", grouped_genus))))))
 
 #Create separate dataframe of just latitude, longitude, and locations (use for later plotting species diversity/richness at each location)
 reef_location <- reef_tidy %>% 
@@ -78,53 +90,69 @@ reef_vegan_subset <- reef_vegan %>%
   pivot_wider(names_from=grouped_species, values_from=mean_count) %>% 
   select(`Abietinaria spp`:`Zonaria farlowii`)
 
-Diversity <- diversity(reef_vegan_subset)
+Diversity <- diversity(reef_vegan_subset, index="shannon")
 Richness <- specnumber(reef_vegan_subset)
 
 #Combine all of this information - location, lat/long, diversity/richness
 reef_vegan <- reef_location %>% 
   add_column(Diversity, Richness)
 
+#Create color palette for each phylum
+pal <- c(
+  "Annelida" = "#D2691E",
+  "Arthropoda" = "#CDCDB4", 
+  "Chlorophyta" = "#A2CD5A", 
+  "Chordata" = "#FFB90F",
+  "Cnidaria" = "#B4CDCD", 
+  "Echinodermata" = "#FF6347", 
+  "Ectoprocta" = "#FF8C00",
+  "Fish" = "#CD3700",
+  "Heterokontophyta" = "#8B814C",
+  "Mollusca" = "#708090",
+  "Phoronida" = "#FAFAD2",
+  "Porifera" = "#EEDC82",
+  "Rhodophyta" = "#DB7093"
+)
+
+#Generate list of MPA sites
+mpa_sites <- c("Anacapa Landing", "Arroyo Quemado", "Carp Reef", "Cathedral Cove", "Gull Island", "IV Reef", "Naples", "West-End & Cat Rock")
+
 ####################################################################
 #Create user interface
 ui <- navbarPage("Marine Biodiversity Observation Network",
                  theme = shinytheme("simplex"),
-                 
+                    
                  ## TAB
-                 
-                 tabPanel("About the App",
-                          h2("What's up with this app?"),
-                          h5(p("This app allows users to visualize survey data collected in kelp forest communities in the Santa Barbara Channel (SBC).")),
-                          p("These data were collected from October 2013 until August 2015.",
-                            "Surveyors took photographs of 1m x 1m quadrats every 2m along a 20m transect.",
-                            "Both vertical and horizontal surfaces surveyed.",
-                            "Photographs were later analyzed to identify marine species present at various sites within the SBC."),
-                          h4(uiOutput("mbon_website")),
-                          p(img(src = "quadrat.jpg", height="25%", width="25%")),
-                          h3(p("Each tab allows users to explore a different aspect of the dataset.")),
-                          h4("Map - Diversity"),
-                            p("Users may explore species diversity and richness across all 22 sites in the SBC.",
-                                      p(em("Output: Map, plot"))
-                                      ),
-                          h4("Map - Abundance"),
-                          p("Users may explore phylum abundances across all 22 sites in the SBC.",
-                                    p(em("Output: Map, plot"))
-                                    ),
-                          h4("Community"),
-                          p("Users may visualize community composition at each of the 22 sites in the SBC. Users are able to compare ecological communities on vertical and horizontal surfaces along the reef.",
-                                    p(em("Output: Plot")),
-                                    ),
-                          h4("Neighbors"),
-                          p("Users may compare organismal co-occurrence within quadrats across all sites. Users may compare plots containing focal and/or neighboring organisms to assess how often the organisms are found together and/or separately.",
-                                    p(em("Output: Plot, table"))
-                                    ),
-                          p(img(src = "mbon.png", height="25%", width="25%"))),
-                 
+
+                 tabPanel("About the app",
+                          fluidRow(column(12,
+                                          jumbotron("Welcome!", "This app allows users to visualize benthic survey data collected in kelp forest communities in the Santa Barbara Channel (SBC).",button=FALSE)),
+                                   br(),
+                                   br(),
+                                   ),
+                          fluidRow(column(12, align="center", 
+                                          #imageOutput('home_image',inline = TRUE),
+                                          h4(HTML('Want to learn more about how these data were collected? Check out the <a href="https://portal.edirepository.org/nis/mapbrowse?scope=edi&identifier=484" target="_blank">data repository</a>.'))
+                          )),
+                          br(),
+                          br(),
+                          HTML('<center><img src="mbon.png" width="500"></center>'),
+                          br(),
+                          br(),
+                          br(),
+                          fluidRow(column(12, align="center", 
+                                          h5(HTML('Code and data used to create this Shiny app are available on <a href="https://github.com/ameliaritger/mbon-shiny-app" target="_blank">Github</a>.'))
+                                          )),
+                          fluidRow(column(12, align="center", 
+                                          h6(HTML('Found an issue with the app? Have a feature you would like to request? Reach out to the <a href="https://ameliaritger.netlify.com" target="_blank">app creator</a>!'))
+                          ))
+                 ),
+
                  ## TAB
                  
                  tabPanel("About the critters",
                           h1("Not familiar with the critters of this dataset? Look no further!"),
-                          p(em("Please be patient, this page may take a few seconds to load")),
+                          p(em("Please be patient, this page may take a few seconds to load.")),
                           sidebarLayout(
                             sidebarPanel("",
                                          selectInput(inputId="phylumSelectComboTree",
@@ -132,6 +160,10 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                      choices=unique(reef_tidy$phylum)
                                          ),
                                          h5(p("Curious what an organism in that phylum looks like?")),
+                                         tags$head(tags$style(
+                                           type="text/css",
+                                           "#phylum_image img {max-width: 100%; width: 100%; height: auto}" #make image reactive to page size
+                                         )),
                                          imageOutput("phylum_image"),
                                          selectizeInput("searchaphylum", 
                                                         label = "Want to learn more about an organism?", 
@@ -144,10 +176,11 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          uiOutput("url", style = "font-size:20px; text-align:center")
                             ),
                             mainPanel(h3(p("Hierarchical tree of the species found in this dataset")),
-                                      collapsibleTreeOutput('tree', height='600px') %>%
+                                      collapsibleTreeOutput('species_tree', height='600px') %>%
                                         withSpinner(color = "#008b8b"),
-                                      h6(p(uiOutput("nps_website"))
-                                      )
+                                      br(),
+                                      br(),
+                                      h6(HTML('With inspiration from the Biodiversity in National Parks <a href="https://abenedetti.shinyapps.io/bioNPS/" target="_blank">Shiny app</a>.'))
                             )
                           )
                  ),
@@ -156,25 +189,25 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  
                  tabPanel("Diversity",
                           h1("Species diversity and richness across the SBC"),
-                          p("Calculated from mean count values for each organism"),
+                          p(em("Calculated from mean count values for each species.")),
                           sidebarLayout(
                             sidebarPanel("",
-                                         radioButtons(inputId="mapindex",
+                                         radioButtons(inputId="pickanindex",
                                                       label="Pick an output!",
                                                       choices=c("Richness","Diversity")
                                          ),
+                                         checkboxGroupInput("mpaselect_diversity", label = "", choices= c("Display Marine Protected Areas (MPAs)"="mpa", "Display unprotected areas"="unprotected"), selected=c("mpa", "unprotected")),
                                          br(),
-                                         plotOutput(outputId="plot4"),
+                                         plotOutput(outputId="plot_index"),
                                          br(),
                                          h5(p(em("How is each term calculated?"))),
                                          h6(p(strong("Richness:"))),
-                                         h6(p("The number of species within a community")),
+                                         h6(p("The number of species within a community.")),
                                          h6(p(strong("Diversity:"))),
-                                         h6(p("The number of species within a community (richness) and the relative abundance of each species (evenness)"))
-                            ),
+                                         h6(p("The number of species within a community (richness) and the relative abundance of each species (evenness).", em(HTML('Here, we used the <a href="https://en.wikipedia.org/wiki/Diversity_index#Shannon_index" target="_blank">Shannon-Wiener Index</a>.'))))
+                                         ),
                             mainPanel(h4(p("")),
-                                      leafletOutput("map2"),
-                                      #h4(p("Plot of species diversity or richness at each site across the SBC")),
+                                      leafletOutput("map_index"),
                             )
                           )
                  ),
@@ -183,19 +216,21 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  
                  tabPanel("Abundance",
                           h1("Mean abundance of marine organisms across the SBC"),
-                          p("Calculated from mean count values for each phylum"),
+                          p(em("Calculated from mean count values for each organism.")),
                           sidebarLayout(
                             sidebarPanel("",
-                                         selectizeInput(inputId="mapitgenus",
-                                                        label = "Enter phylum or species name!",
+                                         selectizeInput(inputId="mapitabundance",
+                                                        label = "Enter a phylum or species name!",
                                                         choices = sort(c(unique(reef_tidy$grouped_species), unique(reef_tidy$phylum))),
                                                         multiple = FALSE,
                                                         selected = 'Annelida'),
+                                         checkboxGroupInput("mpaselect_abundance", label = "", choices= c("Display Marine Protected Areas (MPAs)"="mpa", "Display unprotected areas"="unprotected"), selected=c("mpa", "unprotected")),
+                                         
                                          br(),
-                                         plotOutput(outputId="plotgenusabund"),
+                                         plotOutput(outputId="plot_abundance"),
                                          ),
                             mainPanel(h4(p("")),
-                                      leafletOutput("mapgenusabund")
+                                      leafletOutput("map_abundance")
                             )
                           )
                  ),
@@ -204,31 +239,50 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  
                  tabPanel("Community",
                           h1("Community composition at each site"),
-                          p("Calculated from presence (0 or 1) in replicate plots"),
+                          p("Compare ecological communities on vertical and horizontal surfaces along the reef.", em("Calculated from presence (yes or no) in replicate quadrats at each of the 22 sites in the SBC.")),
                           sidebarLayout(
                             sidebarPanel("",
                                          selectInput(inputId="locationselect",
                                                      label="Pick a location!",
-                                                     choices=unique(reef_tidy$location)
+                                                     choices=sort(unique(reef_tidy$location))
                                          ),
                                          radioButtons(inputId = "orientationselect", 
                                                       label = "Pick an orientation!",
                                                       choices = c("All"="l", "Vertical"="vertical", "Horizontal"="horizontal")
                                          ),
+                                         h6(p(em("Note: not all locations have both vertical and horizontal orientations."))),
+                                         fluidRow(column(10, align="left", 
+                                                         checkboxInput("pickasankey", label = "Display Sankey diagram (interactive)", value = FALSE)),
+                                         column(10, align="left",
+                                                         conditionalPanel(condition = "input.pickasankey == '1'",
+                                                                          numericInput('sankeynumber', 'Pick the number of top phyla to display!', 1, min = 1, max = 5))),
+                                         column(12, align="left",
+                                                conditionalPanel(condition = "input.pickasankey == '1'",
+                                                                h6(p(em("The width of the bands in a", HTML('<a href="https://en.wikipedia.org/wiki/Sankey_diagram" target="_blank">Sankey diagram</a>'), "are proportional to abundance.")))))
+                                                  ),
+                                         br(),
+                                         h5(p("Curious what a quadrat from the location looks like?")),
+                                         tags$head(tags$style(
+                                           type="text/css",
+                                           "#location_image img {max-width: 100%; width: 100%; height: auto}" #make image reactive to page size
+                                         )),
+                                         imageOutput("location_image")
                             ),
                             mainPanel("",
-                                      plotOutput(outputId="plot2"),                                         
-                                      p(strong("APPLY COLOR SCHEME TO PHYLUM NAMES"))
-
+                                      plotOutput(outputId="plot_community"),
+                                      br(),
+                                      conditionalPanel(
+                                        condition = "input.pickasankey == '1'",
+                                        sankeyNetworkOutput("sankey_plot"))
                             )
                           )
                  ),
                  
                  ## TAB 
-                 
+
                  tabPanel("Neighbors",
                           h1("Will you be my neighbor? Evaluating how often organisms are found together."),
-                          p(""),
+                          p("Compare organismal co-occurrence across the SBC.", em("Calculated from presence (yes or no) in replicate quadrats at all 22 sites in the SBC.")),
                           sidebarLayout(
                             sidebarPanel("",
                                          selectInput(inputId="pickaphylum",
@@ -241,107 +295,108 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                      options = list(`actions-box`=TRUE,
                                                                     `selected-text-format` = "count > 3"),
                                                      multiple = TRUE),
-                                         p(strong("ADD ~Or, pick a genus~ HERE?")),
-                                         p(strong("& APPLY COLOR SCHEME TO PHYLUM NAMES"))
+                                         fluidRow(column(10, align="left", 
+                                                         checkboxInput("pickaplot", label = "Display heat map (interactive)", value = FALSE))),
+                                         #p(strong("ADD ~Or, pick a genus~ HERE?")),
+                                         br(),
+                                         #plotlyOutput(outputId="plot_heatmap"),
+                                         br(),
+                                         h5(p(em("What is the difference between the plot and the table?"))),
+                                         p(strong("The plot"), "displays the unique number of quadrats containing the focal organism and", em("each"), "neighbor organism.", strong("The table"), "displays the unique number of quadrats containing the focal organism and", em("all"), "neighbor organisms."),
+                                         p("Thus, if a single quadrat contains the focal organism and three neighbor organisms, the plot would allocate a value of 1 for each neighbor organism (each bar on the plot), and the table would allocate a value of 1 for that quadrat (column three on the table)"),
+                                         conditionalPanel(
+                                           condition = "input.pickaplot == '1'",
+                                           p("Like the plot,", strong("the heat map"), "displays the unique number of quadrats containing the focal organism and each neighbor organism, as well as the focal organism. The darker the shade of the box, the more quadrats containing both the focal organism and the neighbor organism (or focal organism.")),
                                          ),
                             mainPanel("",
                                       p(""),
-                                      plotOutput(outputId="plot1"),
+                                      plotOutput(outputId="plot_neighbor"),
                                       br(),
                                       br(),
-                                      gt_output(outputId="table1")
+                                      gt_output(outputId="table_neighbor"),
+                                      br(),
+                                      conditionalPanel(
+                                        condition = "input.pickaplot == '1'",
+                                        plotlyOutput(outputId="plot_heatmap"))
                                       )
-                            )
                           )
+                 )
 )
                  
 
 ####################################################################
 # Create server
 server <- function(input, output){
-  mbon_url <-  a("MBON website", href="http://sbc.marinebon.org/")
 
-  output$mbon_website <- renderUI({
-    tagList("Want to learn more about the Marine Biodiversity Observation Network? Check out the", mbon_url)
-  })
+### TAB - Welcome
   
-  # reef_select <- reactive({
-  #   reef_tidy %>%
-  #     mutate(focal_phylum=input$focal) %>%
-  #     mutate(presence = ifelse(phylum==focal_phylum, filename, "FALSE")) %>%
-  #     filter(filename %in% presence) %>%
-  #     filter(phylum==c(input$coocurring))
-  # })
-  # 
-  # output$plot1 <- renderPlot({
-  #   ggplot(reef_select(), aes(x=phylum)) +
-  #     geom_bar(aes(phylum)) +
-  #     coord_flip()
-  # })
-  # 
-  # reef_summary <- reactive({
-  #   reef_tidy %>%
-  #     group_by(location,phylum) %>% #group by location, then lat/long
-  #     summarize(mean_count = mean(value), #get the mean count
-  #               sd_count = sd(value), #get the s.d. count
-  #               sample_size = n()) %>%  #get the sample size
-  #     filter(phylum==c(input$mapit))
-  # })
-
+  #output$home_image <- renderImage({
+  #  filename <- normalizePath(here::here('www','quadrat.jpg'))
+    
+  #  print(filename)
+    
+  #  list(src = filename,
+  #       width = 300)
+  #}, deleteFile = FALSE)
+  
 ##**##**##**##**##**##
-### TAB - Neighbor plot 
+  
+### TAB - Neighbor
+### Neighbor plot 
 ## Subset for a phylum
 reef_phylum <- reactive({
-  reef_tidy %>%
-    filter(binary > "0") %>% #filter out species not present
+  reef_tidy %>% 
+    filter(binary > "0") %>% #filter out organisms not present
     mutate(focal_phylum=input$pickaphylum) %>% #pick a focal phylum (BASED ON INPUT)
     mutate(to_match = ifelse(phylum==focal_phylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
     filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
-    filter(phylum %in% c(input$coocurring)) %>% #select only the coocurring phyla you want to look at (BASED ON INPUT)
-    distinct(filename, phylum, .keep_all=TRUE) #remove duplicate phylum observations within the same plot
+    distinct(filename, phylum, .keep_all=TRUE) %>% #filter for unique phylum values for each plot
+    filter(phylum %in% c(input$coocurring)) #select only the coocurring phyla you want to look at (BASED ON INPUT)
   })
 
-output$plot1 <- renderPlot({
-  ggplot(reef_phylum(), aes(x=fct_rev(phylum))) +
-    geom_bar(fill = "#008b8b") +
+#Plot it up
+output$plot_neighbor <- renderPlot({
+  ggplot(reef_phylum(), aes(x=fct_rev(forcats::fct_infreq(phylum)), fill=phylum)) +
+    geom_bar() +
+    scale_fill_manual(values = pal, guide=FALSE) + #color bars by phylum color palette, remove legend
     xlab("Phylum") +
-    ylab(paste("Abundance in plots also containing",input$pickaphylum)) +
+    ylab(paste("Abundance in quadrats also containing",input$pickaphylum)) + #reactive y label
     coord_flip() +
-    theme_minimal()
+    theme_minimal() +
+    theme(text = element_text(size = 15))
    })
 
-##**##**##**##**##**##
-
-### TAB - Neighbor table 
+### Neighbor table 
 #Find number of times focal phylum makes an appearance
 reef_focal <- reactive({
   reef_tidy %>%
-  filter(binary > "0") %>%
-  mutate(to_match = ifelse(phylum %in% input$pickaphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
-  filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
+  filter(binary > "0") %>% #filter out organisms not present
+  filter(phylum == input$pickaphylum) %>% #filter for focal phylum
   distinct(filename) #get unique plot numbers that contain the focal phylum
 })
 
 #Find number of times neighbor genera make an appearance
 reef_neighbor <- reactive({
   reef_tidy %>%
-  filter(binary > "0") %>%
-  mutate(to_match = ifelse(phylum %in% c(input$coocurring), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phyla in the plot at least once
-  filter(filename %in% to_match) %>% #if focal phyla are present, keep all observations of that plot ("filename")
-  distinct(filename)
+  filter(binary > "0") %>% #filter out organisms not present
+  filter(phylum %in% c(input$coocurring)) %>% #filter for neighbor phyla
+  distinct(filename) #get unique plot numbers that contain the focal phylum
 })
 
 #Find number of times focal genus co-occurs with neighbor genus
 reef_together <- reactive({
   reef_tidy %>%
-    filter(binary > "0") %>%
+    filter(binary > "0") %>% #filter out organisms not present
     mutate(to_match = ifelse(phylum %in% input$pickaphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
     filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
-    mutate(to_match = ifelse(phylum %in% input$coocurring, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
-    filter(filename %in% to_match) %>% 
-    distinct(filename)
+    distinct(filename, phylum, .keep_all=TRUE) %>% #filter for unique phylum values for each plot
+    filter(phylum %in% c(input$coocurring)) %>%  #filter for neighbor phyla
+    group_by(filename) %>% #group by quadrat
+    summarize(sample_size = n()) %>% #get the numer of times each quadrat has an observation (of any neighbor phylum)
+    filter(sample_size==max(sample_size)) #only keep quadrats containing all selected neighboring phyla (AKA the "max" sample size)
 })
 
+#Put it in a nice gt() table
 reef_table <- reactive({
   as.data.frame(cbind(nrow(reef_focal()), nrow(reef_neighbor()), nrow(reef_together()))) %>% 
     mutate(percent_focal = V3/V1,
@@ -349,131 +404,217 @@ reef_table <- reactive({
     gt() %>% 
     fmt_percent(columns=vars(percent_focal, percent_neighbor), decimal=1) %>% 
     tab_options(table.width = pct(90)) %>% #make the table width 80% of the page width
-    cols_label(V1=paste("Plots with",input$pickaphylum),
-               V2="Plots with neighboring phyla",
-               V3=paste("Plots with both",input$pickaphylum,"and neighboring phyla"),
-               percent_focal=paste("Percent", input$pickaphylum, "co-occurrs with neighboring phyla"),
-               percent_neighbor=paste("Percent neighboring phyla co-occur with", input$pickaphylum))
+    cols_label(V1=paste("Quadrats with",input$pickaphylum),
+               V2="Quadrats with neighbors",
+               V3=paste("Quadrats with both",input$pickaphylum,"and all neighbors"),
+               percent_focal=paste("Percent", input$pickaphylum, "co-occurrs with neighbors"),
+               percent_neighbor=paste("Percent neighbors co-occur with", input$pickaphylum))
 })
 
-output$table1 <- render_gt({
+output$table_neighbor <- render_gt({
   expr = reef_table()
+})
+
+#Generate heatmap
+reef_heat <- reactive({
+  reef_tidy %>% 
+    group_by(phylum) %>% 
+    select(filename, binary, group_cols()) %>% 
+    group_by(filename) %>% 
+    distinct(filename, phylum, binary) %>% 
+    group_by(filename, phylum) %>%
+    mutate(match = ifelse(length(phylum)==2, "remove", "retain")) %>% 
+    filter(match=="retain" | binary==1) %>% 
+    select(filename, phylum, binary) %>% 
+    filter(binary==1,
+           phylum %in% c(input$pickaphylum, input$coocurring))
+})
+
+reef_heat_melt <- reactive({
+  crossprod(with(reef_heat(), table(filename, phylum))) %>% 
+    as_tibble(rownames = "phylum") %>% 
+    melt()
+})
+
+output$plot_heatmap <- renderPlotly({
+  ggplotly(ggplot(data=reef_heat_melt(), aes(x=phylum, y=variable, fill=value)) +
+             geom_tile() +
+             scale_fill_viridis_c(option = "B", begin = 1, end = 0.45) +
+             theme_minimal() +
+             theme(axis.text.x = element_text(angle = 35, hjust = 1, vjust = 1),
+                   axis.title = element_blank(),
+                   plot.margin=grid::unit(c(0,0,0,0), "mm")) +
+             xlab("phylum"), tooltip="all")
+  # ggplot(data=reef_heat_melt(), aes(x=phylum, y=variable, fill=value)) +
+  #   geom_tile(color="white") +
+  #   scale_fill_viridis_c(option = "B", begin = 1, end = 0.5)
 })
 
 ##**##**##**##**##**##
 
-### TAB - Community plot
-reef_summary <- reactive({
+### TAB - Community
+#reactively display quadrat images for each location
+output$location_image <- renderImage({
+  filename <- normalizePath(file.path('./www/', paste(input$locationselect, ".png", sep="")))
+  
+  list(src = filename)
+       }, deleteFile = FALSE
+)
+
+#Community plot
+#generate reactive summary data
+reef_summary_community <- reactive({
   reef_tidy %>%
     filter(binary > "0") %>% #filter out species not present
-    group_by(location,phylum, orientation) %>% #group by location, then lat/long, include orientation for horizontal versus vertical surfaces
+    filter(location==input$locationselect, #filter for location of interest
+           str_detect(orientation,pattern=input$orientationselect)) %>% #filter for orientation of interest
+    group_by(phylum) %>% #group by phylum
     summarize(mean_count = mean(value), #get the mean count
-              median_count = median(value),
+              median_count = median(value), #get the median count
               sd_count = sd(value), #get the s.d. count
               iqr = IQR(value), #get the interquartile range for the count
-              sample_size = n()) %>% 
-    filter(location==input$locationselect,
-           str_detect(orientation,pattern=input$orientationselect))
+              sample_size = n())
 })
 
-output$plot2 <- renderPlot({
-  ggplot(data=reef_summary(), aes(x=phylum, y=sample_size)) +
-    geom_col(fill = "#008b8b") +
+#generate plot
+output$plot_community <- renderPlot({
+  ggplot(data=reef_summary_community(), aes(x=reorder(phylum, sample_size), #order bars by descending value
+                                  y=sample_size, 
+                                  fill=phylum)) + #color bars by phylum identity
+    geom_col() +
+    scale_fill_manual(values=pal, limits=names(pal), guide=FALSE) + #color bars by phylum color palette, remove legend
     coord_flip() +
     ylab(paste("Number of plots")) +
     xlab("Phylum") +
-    theme_minimal()
+    theme_minimal() +
+    theme(text = element_text(size = 15))
+})
+
+#Sankey diagram
+#Prep data
+reef_top <- reactive({
+  reef_summary_community() %>% 
+  group_by(phylum) %>% 
+  tally(sample_size) %>% 
+  top_n(input$sankeynumber)
+})
+
+reef_sankey <- reactive({
+  reef_tidy %>%
+  filter(binary > "0") %>% #filter out species not present
+  filter(location==input$locationselect, #filter for location of interest
+          str_detect(orientation,pattern=input$orientationselect)) %>% 
+  group_by(phylum, species) %>%
+  summarize(`mean abundance` = mean(value)) %>% 
+  filter(phylum %in% c(reef_top()$phylum)) %>% 
+  select(phylum, species, `mean abundance`)
+})
+
+reef_names <- reactive({
+  reef_sankey() %>% 
+  select(phylum, species)
+})
+
+node_names <- reactive({
+  factor(sort(unique(as.character(unname(unlist(reef_names()))))))
+})
+
+nodes <- reactive({
+  data.frame(name = node_names())
+})
+
+links <- reactive({
+  data.frame(source = match(reef_sankey()$phylum, node_names()) - 1,
+             target = match(reef_sankey()$species, node_names()) - 1,
+             value = reef_sankey()$`mean abundance`,
+             group = reef_sankey()$phylum)
+})
+
+#Set color palette that can be recognized by sankeyNetwork
+my_color <- 'd3.scaleOrdinal() .domain(["Annelida","Arthropoda", "Chlorophyta","Chordata","Cnidaria","Echinodermata","Ectoprocta","Fish","Heterokontophyta","Mollusca","Phoronida","Porifera","Rhodophyta"]) .range(["#D2691E", "#CDCDB4", "#3CB371", "#EE9A00","#6CA6CD", "#FF6347", "#F4A460", "#CD3700", "#6B8E23", "#708090", "#FAFAD2","#EEDD82", "#DB7093"])'
+
+#Sankey diagram
+output$sankey_plot <- renderSankeyNetwork({
+  sankeyNetwork(Links = links(), Nodes = nodes(),
+              Source = "source", Target = "target",
+              Value = "value", NodeID = "name",
+              fontSize = 12, nodeWidth = 30,
+              colourScale = my_color,
+              LinkGroup="group", NodeGroup = NULL)
 })
 
 ##**##**##**##**##**##
 
 ### TAB - Abundance map
-#double check this....
-reef_summary2 <- reactive({
+reef_summary_abundance <- reactive({
   reef_tidy %>%
     filter(binary > "0") %>% #filter out species not present
     st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>%  #create sticky geometry for lat/long
-    group_by(location,phylum) %>% #group by location, then lat/long
-    summarize(Abundance = mean(value), #get the MEAN count
-              sd_count = sd(value), #get the s.d. count
-              sample_size = n()) %>%  #get the sample size
-    filter(phylum==c(input$mapit))
-})
-
-output$map1 <- renderLeaflet({
-  reef_map1 <- tm_basemap("Esri.WorldImagery") +
-    tm_shape(reef_summary2()) +
-    tm_symbols(id="location", col = "Abundance", size ="Abundance", scale=2, 
-               palette = "inferno", contrast = c(1,0.5))
-
-  tmap_leaflet(reef_map1)
-})
-
-output$plot3 <- renderPlot({
-  ggplot(reef_summary2(), aes(x=location, y=Abundance)) +
-    geom_col(aes(fill=Abundance)) +
-    scale_fill_viridis_c(option = "B", begin = 1, end = 0.5) +
-    xlab("Location") +
-    ylab("Mean abundance") +
-    coord_flip() +
-    theme_minimal() +
-    theme(text = element_text(size = 15))
-})
-
-reef_summary_genus_abund <- reactive({
-  reef_tidy %>%
-    filter(binary > "0") %>% #filter out species not present
-    st_as_sf(coords=c("longitude", "latitude"), crs=4326) %>%  #create sticky geometry for lat/long
-    filter((grouped_species==input$mapitgenus)|(phylum==input$mapitgenus)) %>% 
+    filter((grouped_species==input$mapitabundance)|(phylum==input$mapitabundance)) %>% #filter by organism of interest
     group_by(location) %>% #group by location
     summarize(Abundance = mean(value), #get the MEAN count
               sd_count = sd(value), #get the s.d. count
-              sample_size = n())  #get the sample size
+              sample_size = n()) %>%  #get the sample size
+    mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected")) %>% #add column for MPA versus non-MPA sites
+    #filter(str_detect(mpa,pattern=input$mpaselect)) %>% #filter for orientation of interest
+    filter(mpa %in% c(input$mpaselect_abundance))
 })
 
-output$plotgenusabund <- renderPlot({
-  ggplot(reef_summary_genus_abund(), aes(x=location, y=Abundance)) +
-    geom_col(aes(fill=Abundance)) +
-    scale_fill_viridis_c(option = "B", begin = 1, end = 0.5) +
+#create abundance plot
+output$plot_abundance <- renderPlot({
+  ggplot(reef_summary_abundance(), aes(x=reorder(location, desc(location)), y=Abundance)) +
+    geom_col(aes(fill=Abundance)) + #fill color corresponds to value
+    scale_fill_viridis_c(option = "B", begin = 1, end = 0.5) + #set viridis palette to match map
     xlab("Location") +
-    ylab("Mean abundance") +
+    ylab(paste("Mean abundance of",input$mapitabundance)) + #reactively label y axis with map index selection
     coord_flip() +
     theme_minimal() +
     theme(text = element_text(size = 15))
 })
 
-output$mapgenusabund <- renderLeaflet({
-  reef_mapgenusabund <- tm_basemap("Esri.WorldImagery") +
-    tm_shape(reef_summary_genus_abund()) +
-    tm_symbols(id="location", col = "Abundance", size ="Abundance", scale=2, 
-               palette = "inferno", contrast = c(1,0.5))
+#create fixed coordinates of the SBC for those pesky organisms not found across the SBC
+coord_sbc <- st_bbox(reef_vegan %>%
+                    st_as_sf(coords=c("longitude", "latitude"), crs=4326))
+
+#create abundance map
+output$map_abundance <- renderLeaflet({
+  reef_map_abundance <- tm_basemap("Esri.WorldImagery") +
+    tm_shape(reef_summary_abundance(), bbox = coord_sbc) +
+    tm_symbols(id="location", col = "Abundance", size ="Abundance", scale=2, #point size corresponds to value
+               palette = "inferno", contrast = c(1,0.5)) #set viridis palette to match plot
   
-  tmap_leaflet(reef_mapgenusabund)
+  tmap_leaflet(reef_map_abundance)
 })
 
 ##**##**##**##**##**##
 
 ### TAB  - Diversity map
-reef_index_sf <- reactive({
-  reef_vegan %>% 
-    st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
+#make vegan data reactive
+reef_vegan_sf <- reactive({
+  reef_vegan %>%
+  mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected")) %>% #add column for MPA versus non-MPA sites
+  #filter(str_detect(mpa,pattern=input$mpaselect)) %>% #filter for orientation of interest
+    filter(mpa %in% c(input$mpaselect_diversity)) %>% 
+  st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
 })
 
-output$map2 <- renderLeaflet({
-  reef_map2 <- tm_basemap("Esri.WorldImagery") +
-    tm_shape(reef_index_sf()) +
-    tm_symbols(id="location", col = input$mapindex, size = input$mapindex, scale=2, 
-               palette = "inferno", contrast = c(1,0.5))
+#create index map
+output$map_index <- renderLeaflet({
+  reef_map_index <- tm_basemap("Esri.WorldImagery") +
+    tm_shape(reef_vegan_sf(), bbox = coord_sbc) +
+    tm_symbols(id="location", col = input$pickanindex, size = input$pickanindex, scale=2, #point size corresponds to value
+               palette = "inferno", contrast = c(1,0.5)) #set viridis palette to match plot
   
-  tmap_leaflet(reef_map2)
+  tmap_leaflet(reef_map_index)
 })
 
-output$plot4 <- renderPlot({
-  ggplot(reef_index_sf(), aes(x=location, y=!!as.name(input$mapindex))) +
-    geom_col(aes(fill=!!as.name(input$mapindex))) +
-    scale_fill_viridis_c(option = "B", begin = 1, end = 0.5) +
+#create index plot
+output$plot_index <- renderPlot({
+  ggplot(reef_vegan_sf(), aes(x=reorder(location, desc(location)), y=!!as.name(input$pickanindex))) +
+    geom_col(aes(fill=!!as.name(input$pickanindex))) + #bar fill color corresponds to map index selection
+    scale_fill_viridis_c(option = "B", begin = 1, end = 0.5) + #set viridis palette to match map
     xlab("Location") +
-    ylab(paste(input$mapindex)) +
+    ylab(paste("Species",input$pickanindex)) + #reactively label y axis with map index selection
     coord_flip() +
     theme_minimal() +
     theme(text = element_text(size = 15))
@@ -482,7 +623,7 @@ output$plot4 <- renderPlot({
 ##**##**##**##**##**##
 
 ### TAB - Species tree
-#produce image
+#reactively produce image of phylum of interest
 output$phylum_image <- renderImage({
   filename <- normalizePath(file.path('./www/', paste(input$phylumSelectComboTree, ".png", sep="")))
   
@@ -490,33 +631,29 @@ output$phylum_image <- renderImage({
   }, deleteFile = FALSE
 )
 
-#create reactive URL to search for organisms
+#create reactive URL to search for organisms (within WoRMS)
 observeEvent(input$searchaphylum,{
   output$url <-renderUI(a(href=paste0('https://www.google.com/search?q=', input$searchaphylum, "%20site%3Amarinespecies.org"),"Ask WoRMS!",target="_blank"))
 })
 
 #create species tree
-speciesTree <- reactive(reef_tidy[reef_tidy$phylum==input$phylumSelectComboTree,
-                                  c("phylum", "grouped_genus", "grouped_species")])
+#Set order of tree hierarchy
+speciesTree <- reactive(unique(reef_tidy[reef_tidy$phylum==input$phylumSelectComboTree,
+                                  c("phylum", "grouped_genus", "grouped_species")]))
 
-output$tree <- renderCollapsibleTree(
+colorTree <- reactive(as.vector(pal[c(input$phylumSelectComboTree)])) #reactively generate color code for phylum of interest 
+
+output$species_tree <- renderCollapsibleTree(
   collapsibleTree(
     speciesTree(),
-    root = input$phylumSelectComboTree,
+    root = input$phylumSelectComboTree, #tree root is phylum of interest 
     attribute = "grouped_species",
     hierarchy = c("grouped_genus","grouped_species"),
-    fill = "#008b8b",
+    fill = colorTree(), #reactively fill color with phylum color palette
+    fontSize = 13,
     zoomable = FALSE
   )
 )
-
-#credit where credit is due
-nps_url <-  a("Shiny app", href="https://abenedetti.shinyapps.io/bioNPS/")
-
-output$nps_website <- renderUI({
-  tagList("With inspiration from the Biodiversity in National Parks", nps_url)
-})
-
 }
 
 ####################################################################
