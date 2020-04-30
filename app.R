@@ -141,6 +141,10 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                           br(),
                           br(),
                           fluidRow(column(12, align="center", 
+                                          #imageOutput('home_image',inline = TRUE),
+                                          h4(HTML('<a href="https://ameliaritger.shinyapps.io/mbon-shiny-app/" target="_blank">View the full screen version of this app.</a>'))
+                          )),
+                          fluidRow(column(12, align="center", 
                                           h5(HTML('Code and data used to create this Shiny app are available on <a href="https://github.com/ameliaritger/mbon-shiny-app" target="_blank">Github</a>.'))
                                           )),
                           fluidRow(column(12, align="center", 
