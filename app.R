@@ -296,6 +296,14 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          pickerInput(inputId="coocurring",
                                                      label="Pick some neighbors!",
                                                      choices=unique(reef_tidy$phylum),
+                                                     selected="Annelida",
+                                                     options = list(`actions-box`=TRUE,
+                                                                    `selected-text-format` = "count > 3"),
+                                                     multiple = TRUE),
+                                         pickerInput(inputId="pickalocation",
+                                                     label="Pick one (or more) locations!",
+                                                     choices=unique(reef_tidy$location),
+                                                     selected=unique(reef_tidy$location),
                                                      options = list(`actions-box`=TRUE,
                                                                     `selected-text-format` = "count > 3"),
                                                      multiple = TRUE),
@@ -347,7 +355,7 @@ server <- function(input, output){
   
 ### TAB - Neighbor
 ### Neighbor plot 
-## Subset for a phylum
+## Subset for a phylum (and location)
 reef_phylum <- reactive({
   reef_tidy %>% 
     filter(binary > "0") %>% #filter out organisms not present
@@ -355,8 +363,9 @@ reef_phylum <- reactive({
     mutate(to_match = ifelse(phylum==focal_phylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
     filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
     distinct(filename, phylum, .keep_all=TRUE) %>% #filter for unique phylum values for each plot
-    filter(phylum %in% c(input$coocurring)) #select only the coocurring phyla you want to look at (BASED ON INPUT)
-  })
+    filter(phylum %in% c(input$coocurring)) %>% #select only the coocurring phyla you want to look at (BASED ON INPUT)
+    filter(location %in% c(input$pickalocation)) #filter for location of interest
+})
 
 #Plot it up
 output$plot_neighbor <- renderPlot({
@@ -376,6 +385,7 @@ reef_focal <- reactive({
   reef_tidy %>%
   filter(binary > "0") %>% #filter out organisms not present
   filter(phylum == input$pickaphylum) %>% #filter for focal phylum
+  filter(location %in% c(input$pickalocation)) %>% #filter for location of interest
   distinct(filename) #get unique plot numbers that contain the focal phylum
 })
 
@@ -384,6 +394,7 @@ reef_neighbor <- reactive({
   reef_tidy %>%
   filter(binary > "0") %>% #filter out organisms not present
   filter(phylum %in% c(input$coocurring)) %>% #filter for neighbor phyla
+  filter(location %in% c(input$pickalocation)) %>% #filter for location of interest
   distinct(filename) #get unique plot numbers that contain the focal phylum
 })
 
@@ -395,6 +406,7 @@ reef_together <- reactive({
     filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
     distinct(filename, phylum, .keep_all=TRUE) %>% #filter for unique phylum values for each plot
     filter(phylum %in% c(input$coocurring)) %>%  #filter for neighbor phyla
+    filter(location %in% c(input$pickalocation)) %>% #filter for location of interest
     group_by(filename) %>% #group by quadrat
     summarize(sample_size = n()) %>% #get the numer of times each quadrat has an observation (of any neighbor phylum)
     filter(sample_size==max(sample_size)) #only keep quadrats containing all selected neighboring phyla (AKA the "max" sample size)
@@ -422,6 +434,7 @@ output$table_neighbor <- render_gt({
 #Generate heatmap
 reef_heat <- reactive({
   reef_tidy %>% 
+    filter(location %in% c(input$pickalocation)) %>% #filter for location of interest
     group_by(phylum) %>% 
     select(filename, binary, group_cols()) %>% 
     group_by(filename) %>% 
