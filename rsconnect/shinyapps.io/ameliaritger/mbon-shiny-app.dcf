@@ -5,9 +5,9 @@ account: ameliaritger
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 2093041
-bundleId: 3086998
+bundleId: 3091338
 url: https://ameliaritger.shinyapps.io/mbon-shiny-app/
-when: 1588271051.38849
+when: 1588359445.36367
 asMultiple: FALSE
 asStatic: FALSE
 ignoredFiles: app-draft.R|app-janitor-workaround.R|image-gallery.R|MBONReef_Histogram.xlsx|README.md|sankey.Rmd|shiny_prep.html|shiny_prep.Rmd|img
