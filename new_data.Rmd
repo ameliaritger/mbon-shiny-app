@@ -19,9 +19,32 @@ library(gt)
 ```{r}
 #Read in data
 reef1 <- read_csv("MBON_photo_quadrat_point_cover_20200612.csv")
+```
 
+
+```{r}
 mpa_sites <- c("Anacapa Landing", "Arroyo Quemado", "Carpinteria", "Cathedral Cove", "Gull Island", "Isla Vista", "Naples", "West End Cat Rock")
 
+pal <- c(
+  "Annelida" = "#D2691E",
+  "Arthropoda" = "#CDCDB4", 
+  "Chlorophyta" = "#A2CD5A", 
+  "Chordata" = "#FFB90F",
+  "Cnidaria" = "#B4CDCD", 
+  "Echinodermata" = "#FF6347", 
+  "Ectoprocta" = "#FF8C00",
+  #"Fish" = "#CD3700",
+  #"Heterokontophyta" = "#8B814C",
+  "Ochrophyta" = "#8B814C",
+  "Mollusca" = "#708090",
+  "Phoronida" = "#FAFAD2",
+  "Porifera" = "#EEDC82",
+  "Rhodophyta" = "#DB7093"
+)
+```
+
+
+```{r}
 #Tidy up the data
 reef1_tidy <- reef1 %>%
   clean_names() %>% #standardize names
@@ -50,7 +73,7 @@ reef1_tidy <- reef1 %>%
   #filter(str_detect(species_new, "spp."))
     mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected")) #add column for MPA versus non-MPA sites
 
-sort(unique(reef1_tidy$species_new))
+sort(unique(reef1_tidy$location))
 
 reef1_location <- reef1_tidy %>% 
   distinct(location, latitude, longitude)
@@ -92,3 +115,91 @@ tmap_mode("view") #view = interactive
 reef1_map_index
 ```
 
+Community tab troubleshooting
+```{r}
+#generate reactive summary data
+reef1_summary_community <- reef1_tidy %>%
+    filter(value > "0") %>% #filter out species not present
+    filter(location=="Naples", #filter for location of interest
+           str_detect(orientation,pattern="l")) %>% #filter for orientation of interest
+    group_by(phylum) %>% #group by phylum
+    summarize(mean_count = mean(value), #get the mean count
+              median_count = median(value), #get the median count
+              sd_count = sd(value), #get the s.d. count
+              iqr = IQR(value), #get the interquartile range for the count
+              sample_size = n())
+
+#generate plot
+  ggplot(data=reef1_summary_community, aes(x=reorder(phylum, sample_size), #order bars by descending value
+                                  y=sample_size, 
+                                  fill=phylum)) + #color bars by phylum identity
+    geom_col() +
+    scale_fill_manual(values=pal, limits=names(pal), guide=FALSE) + #color bars by phylum color palette, remove legend
+    coord_flip() +
+    ylab(paste("Number of plots")) +
+    xlab("Phylum") +
+    theme_minimal() +
+    theme(text = element_text(size = 15))
+```
+
+
+```{r}
+#Sankey diagram
+#Prep data
+reef_top <- reactive({
+  reef_summary_community() %>% 
+  group_by(phylum) %>% 
+  tally(sample_size) %>% 
+  top_n(input$sankeynumber)
+})
+
+reef_sankey <- reactive({
+  reef_tidy %>%
+  filter(value > "0") %>% #filter out species not present
+  filter(location==input$locationselect, #filter for location of interest
+          str_detect(orientation,pattern=input$orientationselect)) %>% 
+  group_by(phylum, species) %>%
+  summarize(`mean abundance` = mean(value)) %>% 
+  filter(phylum %in% c(reef_top()$phylum)) %>% 
+  select(phylum, species, `mean abundance`)
+})
+
+reef_names <- reactive({
+  reef_sankey() %>% 
+  select(phylum, species)
+})
+
+node_names <- reactive({
+  factor(sort(unique(as.character(unname(unlist(reef_names()))))))
+})
+
+nodes <- reactive({
+  data.frame(name = node_names())
+})
+
+links <- reactive({
+  data.frame(source = match(reef_sankey()$phylum, node_names()) - 1,
+             target = match(reef_sankey()$species, node_names()) - 1,
+             value = reef_sankey()$`mean abundance`,
+             group = reef_sankey()$phylum)
+})
+
+#Set color palette that can be recognized by sankeyNetwork
+my_color <- 'd3.scaleOrdinal() .domain(["Annelida","Arthropoda", "Chlorophyta","Chordata","Cnidaria","Echinodermata","Ectoprocta","Fish","Heterokontophyta","Mollusca","Phoronida","Porifera","Rhodophyta"]) .range(["#D2691E", "#CDCDB4", "#3CB371", "#EE9A00","#6CA6CD", "#FF6347", "#F4A460", "#CD3700", "#6B8E23", "#708090", "#FAFAD2","#EEDD82", "#DB7093"])'
+
+#Sankey diagram
+output$sankey_plot <- renderSankeyNetwork({
+  sankeyNetwork(Links = links(), Nodes = nodes(),
+              Source = "source", Target = "target",
+              Value = "value", NodeID = "name",
+              fontSize = 12, nodeWidth = 30,
+              colourScale = my_color,
+              LinkGroup="group", NodeGroup = NULL)
+})
+
+```
+
+
+# TO DO:
+- group all of the common names together (like anemones, bryozoans)
+- fix Community tab
