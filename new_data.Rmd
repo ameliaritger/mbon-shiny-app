@@ -1,0 +1,93 @@
+---
+title: "Untitled"
+author: "Amelia Ritger"
+date: "6/15/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+library(tidyverse)
+library(janitor)
+library(sf)
+library(tmap)
+library(vegan)
+library(gt)
+```
+
+## Organize the data 
+```{r}
+#Read in data
+reef1 <- read_csv("MBON_photo_quadrat_point_cover_20200612.csv")
+
+mpa_sites <- c("Anacapa Landing", "Arroyo Quemado", "Carp Reef", "Cathedral Cove", "Gull Island", "IV Reef", "Naples", "West-End & Cat Rock")
+
+#Tidy up the data
+reef1_tidy <- reef1 %>%
+  clean_names() %>% #standardize names
+  #group_by(location) %>% #group by location to get average lat/long values for each location
+  #mutate(latitude=head(lat,1), longitude=head(long,1)) %>% #get average lat/long values (because that's how that works...)
+  #ungroup() %>% #really important, we don't want to confuse R!
+  #pivot_longer("annelida_cirriformia_luxuriosa":"substrate_amphipod_tube_complex") %>%  #make long form
+  #separate(name, into="phylum", sep="_", remove=FALSE) %>% #Add column for phylum name
+  #mutate(vectorized_name=str_split(name, pattern="_")) %>% #In case this is useful...
+  filter(!category=="no data") %>% #remove values related to data collection issue
+  filter(!category=="substrate") %>% #remove substrate values
+  rename(value = percent_cover,
+         latitude = lat,
+         longitude = lon) %>% 
+  mutate(latitude=head(latitude,1), 
+         longitude=head(longitude,1), #get one value for lat/long (because that's how that works...)
+         common_name = str_replace_all(common_name, pattern="\\.", " ")) %>% #replace . in common names with a space
+  #all of the following lines replace blank species, genus, and order values with the common name
+  mutate(species_new = ifelse(is.na(species)=="TRUE", common_name, species), #replace NAs with common name
+         genus_new = ifelse(is.na(genus)=="TRUE", common_name, genus),
+         order_new = ifelse(is.na(order)=="TRUE", common_name, order),
+         species_new = ifelse(is.na(species_new)=="TRUE", paste(genus_new, "spp."), species_new)) %>% #if no common name, make species name "Genus spp."
+  #filter(is.na(species_new)=="TRUE")
+  #filter(str_detect(species_new, "spp."))
+    mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected")) #add column for MPA versus non-MPA sites
+
+sort(unique(reef1_tidy$phylum))
+
+reef1_location <- reef1_tidy %>% 
+  distinct(location, latitude, longitude)
+
+reef1_vegan <- reef1_tidy %>% #named so because of the vegan package!
+  group_by(location,species_new, mpa) %>% #group by location, then lat/long
+  summarize(mean_count = mean(value)) %>%  #get the mean count
+  select(location, species_new, mpa, mean_count) %>% 
+  ungroup()
+
+#Calculate species diversity and richness for each site
+reef1_vegan_subset <- reef1_vegan %>%
+  pivot_wider(names_from=species_new, values_from=mean_count) %>% 
+  replace(is.na(.), 0) %>% #replace all NA values with zeros
+  select(`Abeitinaria spp.`:`yellow erect sponge`)
+
+diversity1 <- diversity(reef1_vegan_subset)
+richness1 <- specnumber(reef1_vegan_subset)
+
+reef1_vegan <- reef1_location %>% 
+  add_column(diversity1, richness1)
+```
+
+Diversity tab troubleshooting
+```{r}
+reef_vegan_sf <- reef_vegan %>%
+  mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected")) %>% #add column for MPA versus non-MPA sites
+  #filter(str_detect(mpa,pattern=input$mpaselect)) %>% #filter for orientation of interest
+    filter(mpa %in% c(Diversity)) %>% 
+  st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
+
+#create index map
+output$map_index <- renderLeaflet({
+  reef_map_index <- tm_basemap("Esri.WorldImagery") +
+    tm_shape(reef_vegan_sf(), bbox = coord_sbc) +
+    tm_symbols(id="location", col = input$pickanindex, size = input$pickanindex, scale=2, #point size corresponds to value
+               palette = "inferno", contrast = c(1,0.5)) #set viridis palette to match plot
+  
+  tmap_leaflet(reef_map_index)
+})
+```
+
