@@ -20,7 +20,7 @@ library(gt)
 #Read in data
 reef1 <- read_csv("MBON_photo_quadrat_point_cover_20200612.csv")
 
-mpa_sites <- c("Anacapa Landing", "Arroyo Quemado", "Carp Reef", "Cathedral Cove", "Gull Island", "IV Reef", "Naples", "West-End & Cat Rock")
+mpa_sites <- c("Anacapa Landing", "Arroyo Quemado", "Carpinteria", "Cathedral Cove", "Gull Island", "Isla Vista", "Naples", "West End Cat Rock")
 
 #Tidy up the data
 reef1_tidy <- reef1 %>%
@@ -36,10 +36,11 @@ reef1_tidy <- reef1 %>%
   rename(value = percent_cover,
          latitude = lat,
          longitude = lon) %>% 
+  group_by(location) %>% #group by location to get one lat/long value for each location
   mutate(latitude=head(latitude,1), 
-         longitude=head(longitude,1), #get one value for lat/long (because that's how that works...)
-         common_name = str_replace_all(common_name, pattern="\\.", " ")) %>% #replace . in common names with a space
-  #all of the following lines replace blank species, genus, and order values with the common name
+         longitude=head(longitude,1)) %>%  #get one value for lat/long (because that's how that works...)
+  ungroup() %>% #Important!
+  mutate(common_name = str_replace_all(common_name, pattern="\\.", " ")) %>% #replace . in common names with a space
   mutate(species_new = ifelse(is.na(species)=="TRUE", common_name, species), #replace NAs with common name
          genus_new = ifelse(is.na(genus)=="TRUE", common_name, genus),
          order_new = ifelse(is.na(order)=="TRUE", common_name, order),
@@ -74,20 +75,19 @@ reef1_vegan <- reef1_location %>%
 
 Diversity tab troubleshooting
 ```{r}
-reef_vegan_sf <- reef_vegan %>%
-  mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected")) %>% #add column for MPA versus non-MPA sites
-  #filter(str_detect(mpa,pattern=input$mpaselect)) %>% #filter for orientation of interest
-    filter(mpa %in% c(Diversity)) %>% 
-  st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
+coord_sbc <- st_bbox(reef1_vegan %>%
+                       st_as_sf(coords=c("longitude", "latitude"), crs=4326))
+
+reef1_vegan_sf <- reef1_vegan %>% 
+    st_as_sf(coords=c("longitude", "latitude"), crs=4326)  #create sticky geometry for lat/long
 
 #create index map
-output$map_index <- renderLeaflet({
-  reef_map_index <- tm_basemap("Esri.WorldImagery") +
-    tm_shape(reef_vegan_sf(), bbox = coord_sbc) +
-    tm_symbols(id="location", col = input$pickanindex, size = input$pickanindex, scale=2, #point size corresponds to value
+reef1_map_index <- tm_basemap("Esri.WorldImagery") +
+    tm_shape(reef1_vegan_sf, bbox = coord_sbc) +
+    tm_symbols(id="location", col = "richness1", size = "richness1", scale=2, #point size corresponds to value
                palette = "inferno", contrast = c(1,0.5)) #set viridis palette to match plot
   
-  tmap_leaflet(reef_map_index)
-})
+tmap_mode("view") #view = interactive
+reef1_map_index
 ```
 

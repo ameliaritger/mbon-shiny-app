@@ -47,9 +47,11 @@ reef_tidy <- reef %>%
   rename(value = percent_cover,
          latitude = lat,
          longitude = lon) %>% 
+  group_by(location) %>% #group by location to get one lat/long value for each location
   mutate(latitude=head(latitude,1), 
-         longitude=head(longitude,1), #get one value for lat/long (because that's how that works...)
-         common_name = str_replace_all(common_name, pattern="\\.", " ")) %>% #replace . in common names with a space
+         longitude=head(longitude,1)) %>%  #get one value for lat/long (because that's how that works...)
+  ungroup() %>% #Important!
+  mutate(common_name = str_replace_all(common_name, pattern="\\.", " ")) %>% #replace . in common names with a space
   #all of the following lines replace blank species, genus, and order values with the common name
   mutate(species_new = ifelse(is.na(species)=="TRUE", common_name, species), #replace NAs with common name
          genus_new = ifelse(is.na(genus)=="TRUE", common_name, genus),
@@ -199,7 +201,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          h6(p("The number of species within a community (richness) and the relative abundance of each species (evenness).", em(HTML('Here, we used the <a href="https://en.wikipedia.org/wiki/Diversity_index#Shannon_index" target="_blank">Shannon-Wiener Index</a>.'))))
                                          ),
                             mainPanel(h4(p("")),
-                                      #leafletOutput("map_index")
+                                      leafletOutput("map_index")
                             )
                           )
                  ),
