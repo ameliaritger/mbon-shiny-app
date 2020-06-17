@@ -56,7 +56,8 @@ reef_tidy <- reef %>%
   mutate(species_new = ifelse(is.na(species)=="TRUE", common_name, species), #replace NAs with common name
          genus_new = ifelse(is.na(genus)=="TRUE", common_name, genus),
          order_new = ifelse(is.na(order)=="TRUE", common_name, order),
-         species_new = ifelse(is.na(species_new)=="TRUE", paste(genus_new, "spp."), species_new)) %>% #if no common name, make species name "Genus spp."
+         species_new = ifelse(is.na(species_new)=="TRUE", paste(genus_new, "spp."), #if no common name, make species name "Genus spp."
+                              ifelse(species_new==genus_new, species_new, paste(genus_new,species_new)))) %>% #for those organisms with only a common name identifier for genus and species, only use the common name in the species_new column (to avoid duplication)
   #filter(is.na(species_new)=="TRUE")
   #filter(str_detect(species_new, "spp."))
   mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected")) #add column for MPA versus non-MPA sites
@@ -77,7 +78,7 @@ reef_vegan <- reef_tidy %>% #named so because of the vegan package!
 reef_vegan_subset <- reef_vegan %>%
   pivot_wider(names_from=species_new, values_from=mean_count) %>% 
   replace(is.na(.), 0) %>% #replace all NA values with zeros
-  select(`Abeitinaria spp.`:`yellow erect sponge`)
+  select(`Abeitinaria spp.`:`Zonaria farlowii`)
 
 Diversity <- diversity(reef_vegan_subset, index="shannon")
 Richness <- specnumber(reef_vegan_subset)
