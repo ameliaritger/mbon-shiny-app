@@ -74,13 +74,14 @@ reef1_tidy <- reef1 %>%
                                                   order_new))))))),
            genus_new = ifelse(str_detect(species_new, pattern = "red filament worm"), "Other worms",
                               ifelse(str_detect(species_new, pattern = "anemone"), "Other anemones",
-                                            ifelse(str_detect(species_new, pattern = "algae"), "Other algae",
                                                           ifelse(str_detect(species_new, pattern = "fine bryozoan"), "Other Cyclostomatids",
                                                                  ifelse(str_detect(species_new, pattern = "encrusting bryozoan"), "Other Cheilostomatids",
-                                                                        #ifelse(str_detect(species_new, pattern = "nongeniculate"), "Other red algae",
-                                                                               ifelse(str_detect(species_new, pattern = "spirorbid"), "Other Sabellids",
-                                                                                                                    ifelse(str_detect(species_new, pattern = "white worm"), "Other Sabellids",
-                              genus_new))))))))
+                                                                        ifelse(str_detect(species_new, pattern = "spirorbid"), "Other Sabellids",
+                                                                               ifelse(str_detect(species_new, pattern = "white worm"), "Other Sabellids",
+                                                                                      ifelse(str_detect(species_new, pattern = "red filamentous algae"), "Other red algae",
+                                                                      ifelse(str_detect(species_new, pattern = "red turf algae"), "Other red algae",
+                                                                             ifelse(str_detect(species_new, pattern = "red feather a algae"), "Other red algae",
+                              genus_new))))))))))
 
                                                         # ifelse(str_detect(species_new, pattern = "green filamentous algae"), "Other green algae",
                                                         #        ifelse(str_detect(species_new, pattern = "red filamentous algae"), "Other red algae",
@@ -168,11 +169,11 @@ reef1_summary_community <- reef1_tidy %>%
 reef_top <- reef1_summary_community %>% 
   group_by(phylum) %>% 
   tally(sample_size) %>% 
-  top_n(1)
+  top_n(2)
 
 reef_sankey <- reef1_tidy %>%
   filter(value > "0") %>% #filter out species not present
-  filter(location=="Anacapa Landing", #filter for location of interest
+  filter(location=="Carpinteria", #filter for location of interest
            str_detect(orientation,pattern="l")) %>% #filter for orientation of interest
   group_by(phylum, order_new, species_new) %>%
   summarize(`mean abundance` = mean(value)) %>% 
@@ -192,16 +193,17 @@ links <- data.frame(source = match(c(reef_sankey$phylum,reef_sankey$order_new), 
                     value = reef_sankey$`mean abundance`,
                     group = c(reef_sankey$phylum, reef_sankey$order_new))
 
-
+#turn palette color list into df
 pal_df <- as.data.frame(pal)
 pal_df$pal <- as.character(pal)
 pal_df <- pal_df %>% 
   mutate(phylum = row.names(pal_df))
 
+#Create a df with colors associated with phylum names, plus all other organism names
 links_new <- left_join(nodes, pal_df, by=c("name"="phylum"))
 
-reef1_tidy_org <- merge(reef1_tidy, pal_df, by="phylum")
-reef_palette <- merge(reef1_tidy, pal_df, by="phylum") %>% 
+#Add phylum color palette to reef_tidy df
+reef_palette <- merge(reef_palette, pal_df, by="phylum") %>% 
   select(species_new, genus_new, order_new, phylum, pal) %>% 
   distinct(species_new, .keep_all=TRUE) %>% 
   pivot_longer(species_new:phylum) %>% 
@@ -216,20 +218,22 @@ links_noo <- left_join(links_new, reef_palette, by = "name")
 #sample(pal, 60, replace=TRUE))
 
 #Set color palette that can be recognized by sankeyNetwork
-my_color <- 'd3.scaleOrdinal() .domain(["Annelida","Arthropoda","Chlorophyta","Chordata","Cnidaria","Echinodermata","Ectoprocta","Fish","Heterokontophyta","Mollusca","Phoronida","Porifera","Rhodophyta"]) .range(["#D2691E", "#CDCDB4", "#3CB371", "#EE9A00","#6CA6CD", "#FF6347", "#F4A460", "#CD3700", "#6B8E23", "#708090", "#FAFAD2","#EEDD82", "#DB7093"])'
+# my_color <- 'd3.scaleOrdinal() .domain(["Annelida","Arthropoda","Chlorophyta","Chordata","Cnidaria","Echinodermata","Ectoprocta","Fish","Heterokontophyta","Mollusca","Phoronida","Porifera","Rhodophyta"]) .range(["#D2691E", "#CDCDB4", "#3CB371", "#EE9A00","#6CA6CD", "#FF6347", "#F4A460", "#CD3700", "#6B8E23", "#708090", "#FAFAD2","#EEDD82", "#DB7093"])'
 
-colors2 <- paste(links_noo$color, collapse = '", "')
-organism <- paste(links_noo$phylum, collapse = '", "')
-colorJS2 <- paste('d3.scaleOrdinal(["', colors2, '"])')
-colorJS3 <- paste('d3.scaleOrdinal() .domain(["',organism,'"]) .range(["',colors2,'"])')
+colors <- paste(links_noo$color, collapse = '", "')
+critters <- paste(links_noo$name, collapse = '", "')
+# colorJS2 <- paste('d3.scaleOrdinal(["', colors2, '"])')
+colorJS <- paste('d3.scaleOrdinal() .domain(["',critters,'"]) .range(["',colors,'"])')
                   
 #Sankey diagram
 sankeyNetwork(Links = links, Nodes = nodes,
               Source = "source", Target = "target",
               Value = "value", NodeID = "name",
               fontSize = 20, nodeWidth = 5,
-              colourScale = colorJS3,
+              colourScale = colorJS,
               LinkGroup="group", NodeGroup = NULL)
+
+ggsave("temp_hist.png")
 ```
 
 #Fix Neighbors tab table
