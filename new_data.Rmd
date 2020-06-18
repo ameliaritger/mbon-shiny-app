@@ -175,19 +175,24 @@ links <- data.frame(source = match(c(reef_sankey$phylum,reef_sankey$order_new), 
 
 pal_noo <- as.data.frame(pal)
 pal_noo$pal <- as.character(pal)
-
 pal_noo <- pal_noo %>% 
-  mutate(name = row.names(pal_noo))
+  mutate(phylum = row.names(pal_noo))
 
-links_new <- left_join(nodes, pal_noo, by="name") %>% 
-  mutate(color = ifelse(is.na(pal)==TRUE, "red", pal))
+nodes2 <- nodes %>% 
+  rename(phylum=name)
+links_new <- left_join(nodes2, pal_noo, by="phylum")
 
-reef1_tidy_org <- reef1_tidy %>% 
-  select(species_new, genus_new, order_new) %>% 
-  distinct(species_new, .keep_all=TRUE) #remove duplicate values of species
+reef1_tidy_org <- merge(reef1_tidy, pal_noo, by="phylum")
+reef_palette <- reef1_tidy_org %>% 
+  select(species_new, genus_new, order_new, phylum, pal) %>% 
+  distinct(species_new, .keep_all=TRUE) %>% 
+  pivot_longer(species_new:phylum) %>% 
+  rename(color=pal,
+         group=name,
+         phylum=value) %>% 
+  distinct(phylum, .keep_all=TRUE)
 
-
-links_noo <- left_join(links_new, )
+links_noo <- left_join(links_new, reef_palette, by = "phylum")
 
 #mutate(color = ifelse(group %in% pal_noo$organism, pal_noo$pal, "random"))
 #sample(pal, 60, replace=TRUE))
@@ -195,15 +200,19 @@ links_noo <- left_join(links_new, )
 #Set color palette that can be recognized by sankeyNetwork
 my_color <- 'd3.scaleOrdinal() .domain(["Annelida","Arthropoda","Chlorophyta","Chordata","Cnidaria","Echinodermata","Ectoprocta","Fish","Heterokontophyta","Mollusca","Phoronida","Porifera","Rhodophyta"]) .range(["#D2691E", "#CDCDB4", "#3CB371", "#EE9A00","#6CA6CD", "#FF6347", "#F4A460", "#CD3700", "#6B8E23", "#708090", "#FAFAD2","#EEDD82", "#DB7093"])'
 
-colors2 <- paste(links_new$color, collapse = '", "')
+colors2 <- paste(links_noo$color, collapse = '", "')
+organism <- paste(links_noo$phylum, collapse = '", "')
 colorJS2 <- paste('d3.scaleOrdinal(["', colors2, '"])')
 
+
+colorJS3 <- paste('d3.scaleOrdinal() .domain(["',organism,'"]) .range(["',colors2,'"])')
+                  
 #Sankey diagram
 sankeyNetwork(Links = links, Nodes = nodes,
               Source = "source", Target = "target",
               Value = "value", NodeID = "name",
               fontSize = 12, nodeWidth = 30,
-              colourScale = colorJS2,
+              colourScale = colorJS3,
               LinkGroup="group", NodeGroup = NULL)
 
 ```
