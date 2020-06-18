@@ -68,18 +68,31 @@ reef1_tidy <- reef1 %>%
                              ifelse(str_detect(species_new, pattern = "brown blade"), "Other brown algae",
                                     ifelse(str_detect(species_new, pattern = "tunicate"), "Other tunicates",
                                            ifelse(str_detect(species_new, pattern = "hydroid"), "Other hydroids",
-                                                  order_new)))),
+                                                  ifelse(str_detect(species_new, pattern = "red filamentous algae"), "Other red algae",
+                                                                      ifelse(str_detect(species_new, pattern = "red turf algae"), "Other red algae",
+                                                                             ifelse(str_detect(species_new, pattern = "red feather a algae"), "Other red algae",
+                                                  order_new))))))),
            genus_new = ifelse(str_detect(species_new, pattern = "red filament worm"), "Other worms",
                               ifelse(str_detect(species_new, pattern = "anemone"), "Other anemones",
                                             ifelse(str_detect(species_new, pattern = "algae"), "Other algae",
                                                           ifelse(str_detect(species_new, pattern = "fine bryozoan"), "Other Cyclostomatids",
                                                                  ifelse(str_detect(species_new, pattern = "encrusting bryozoan"), "Other Cheilostomatids",
-                                                                        ifelse(str_detect(species_new, pattern = "nongeniculate"), "Other red algae",
+                                                                        #ifelse(str_detect(species_new, pattern = "nongeniculate"), "Other red algae",
                                                                                ifelse(str_detect(species_new, pattern = "spirorbid"), "Other Sabellids",
                                                                                                                     ifelse(str_detect(species_new, pattern = "white worm"), "Other Sabellids",
-                              genus_new)))))))))
+                              genus_new))))))))
 
-sort(unique(reef1_tidy$genus_new))
+                                                        # ifelse(str_detect(species_new, pattern = "green filamentous algae"), "Other green algae",
+                                                        #        ifelse(str_detect(species_new, pattern = "red filamentous algae"), "Other red algae",
+                                                        #               ifelse(str_detect(species_new, pattern = "red turf algae"), "Other red algae",
+                                                        #                      ifelse(str_detect(species_new, pattern = "red feather a algae"), "Other red algae",
+                                                        #                             order_new))))))))),
+                                                        # 
+                                                        # ifelse(str_detect(species_new, pattern = "nongeniculate"), "Other coralline algae",
+  #mutate_at(vars(phylum, genus_new), character) %>% 
+  #filter(str_detect(species_new, pattern="red"))
+
+#sort(unique(reef1_tidy$species_new))
 
 reef1_location <- reef1_tidy %>% 
   distinct(location, latitude, longitude)
@@ -155,14 +168,15 @@ reef1_summary_community <- reef1_tidy %>%
 reef_top <- reef1_summary_community %>% 
   group_by(phylum) %>% 
   tally(sample_size) %>% 
-  top_n(2)
+  top_n(1)
 
 reef_sankey <- reef1_tidy %>%
   filter(value > "0") %>% #filter out species not present
-  filter(location=="Naples", #filter for location of interest
+  filter(location=="Anacapa Landing", #filter for location of interest
            str_detect(orientation,pattern="l")) %>% #filter for orientation of interest
   group_by(phylum, order_new, species_new) %>%
   summarize(`mean abundance` = mean(value)) %>% 
+  ungroup() %>% 
   filter(phylum %in% c(reef_top$phylum)) %>% 
   select(phylum, order_new, species_new, `mean abundance`)
 
@@ -176,9 +190,7 @@ nodes <- data.frame(name = node_names)
 links <- data.frame(source = match(c(reef_sankey$phylum,reef_sankey$order_new), node_names) - 1,
                     target = match(c(reef_sankey$order_new, reef_sankey$species_new), node_names) - 1,
                     value = reef_sankey$`mean abundance`,
-                    group = c(reef_sankey$phylum, reef_sankey$order_new)) %>%
-  filter(!str_detect(group, pattern=" "))
-
+                    group = c(reef_sankey$phylum, reef_sankey$order_new))
 
 
 pal_df <- as.data.frame(pal)
@@ -215,7 +227,7 @@ colorJS3 <- paste('d3.scaleOrdinal() .domain(["',organism,'"]) .range(["',colors
 sankeyNetwork(Links = links, Nodes = nodes,
               Source = "source", Target = "target",
               Value = "value", NodeID = "name",
-              fontSize = 12, nodeWidth = 30,
+              fontSize = 20, nodeWidth = 5,
               colourScale = colorJS3,
               LinkGroup="group", NodeGroup = NULL)
 ```
