@@ -540,41 +540,41 @@ links <- reactive({
 })
 
 #Set color palette that can be recognized by sankeyNetwork
-# pal_df <- as.data.frame(pal)
-# pal_df$pal <- as.character(pal)
-# pal_df <- pal_df %>% 
-#   mutate(phylum = row.names(pal_df))
-# 
-# links_new <- reactive({
-#   left_join(nodes(), pal_df, by=c("name"="phylum"))
-# })
-# 
-# reef_palette <- reactive({
-#   merge(reef_tidy(), pal_df, by="phylum") %>% 
-#   select(species_new, genus_new, order_new, phylum, pal) %>% 
-#   distinct(species_new, .keep_all=TRUE) %>% 
-#   pivot_longer(species_new:phylum) %>% 
-#   rename(color=pal,
-#          group=name,
-#          name=value) %>% 
-#   distinct(name, .keep_all=TRUE)
-# })
-# 
-# color_df <- reactive({
-#   left_join(links_new(), reef_palette(), by = "name")
-# })
-# 
-# colors <- reactive({
-#   paste(color_df()$color, collapse = '", "')
-# })
-# 
-# organism <- reactive({
-#   paste(color_df()$name, collapse = '", "')
-# })
-# 
-# colorJS <- reactive({
-#   paste('d3.scaleOrdinal() .domain(["',organism(),'"]) .range(["',colors2(),'"])')
-# })
+pal_df <- as.data.frame(pal)
+pal_df$pal <- as.character(pal)
+pal_df <- pal_df %>%
+  mutate(phylum = row.names(pal_df))
+
+links_new <- reactive({
+  left_join(nodes(), pal_df, by=c("name"="phylum"))
+})
+
+reef_palette <- reactive({
+  merge(reef_tidy, pal_df, by="phylum") %>%
+  select(species_new, genus_new, order_new, phylum, pal) %>%
+  distinct(species_new, .keep_all=TRUE) %>%
+  pivot_longer(species_new:phylum) %>%
+  rename(color=pal,
+         group=name,
+         name=value) %>%
+  distinct(name, .keep_all=TRUE)
+})
+
+color_df <- reactive({
+  left_join(links_new(), reef_palette(), by = "name")
+})
+
+colors <- reactive({
+  paste(color_df()$color, collapse = '", "')
+})
+
+organism <- reactive({
+  paste(color_df()$name, collapse = '", "')
+})
+
+colorJS <- reactive({
+  paste('d3.scaleOrdinal() .domain(["',organism(),'"]) .range(["',colors(),'"])')
+})
 
 #Sankey diagram
 output$sankey_plot <- renderSankeyNetwork({
@@ -582,7 +582,7 @@ output$sankey_plot <- renderSankeyNetwork({
               Source = "source", Target = "target",
               Value = "value", NodeID = "name",
               fontSize = 12, nodeWidth = 30,
-              #colourScale = colorJS(),
+              colourScale = colorJS(),
               LinkGroup="group", NodeGroup = NULL)
 })
 
