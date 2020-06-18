@@ -539,7 +539,7 @@ links <- reactive({
 })
 
 #Set color palette that can be recognized by sankeyNetwork
-my_color <- 'd3.scaleOrdinal() .domain(["Annelida","Arthropoda", "Chlorophyta","Chordata","Cnidaria","Echinodermata","Ectoprocta","Fish","Heterokontophyta","Mollusca","Phoronida","Porifera","Rhodophyta"]) .range(["#D2691E", "#CDCDB4", "#3CB371", "#EE9A00","#6CA6CD", "#FF6347", "#F4A460", "#CD3700", "#6B8E23", "#708090", "#FAFAD2","#EEDD82", "#DB7093"])'
+my_color <- 'd3.scaleOrdinal() .domain(["Annelida","Arthropoda", "Chlorophyta","Chordata","Cnidaria","Echinodermata","Ectoprocta","Fish","Ochrophyta","Mollusca","Phoronida","Porifera","Rhodophyta"]) .range(["#D2691E", "#CDCDB4", "#3CB371", "#EE9A00","#6CA6CD", "#FF6347", "#F4A460", "#CD3700", "#6B8E23", "#708090", "#FAFAD2","#EEDD82", "#DB7093"])'
 
 #Sankey diagram
 output$sankey_plot <- renderSankeyNetwork({
