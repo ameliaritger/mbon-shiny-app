@@ -48,12 +48,6 @@ pal <- c(
 #Tidy up the data
 reef1_tidy <- reef1 %>%
   clean_names() %>% #standardize names
-  #group_by(location) %>% #group by location to get average lat/long values for each location
-  #mutate(latitude=head(lat,1), longitude=head(long,1)) %>% #get average lat/long values (because that's how that works...)
-  #ungroup() %>% #really important, we don't want to confuse R!
-  #pivot_longer("annelida_cirriformia_luxuriosa":"substrate_amphipod_tube_complex") %>%  #make long form
-  #separate(name, into="phylum", sep="_", remove=FALSE) %>% #Add column for phylum name
-  #mutate(vectorized_name=str_split(name, pattern="_")) %>% #In case this is useful...
   filter(!category=="no data") %>% #remove values related to data collection issue
   filter(!category=="substrate") %>% #remove substrate values
   rename(value = percent_cover,
@@ -69,11 +63,23 @@ reef1_tidy <- reef1 %>%
          order_new = ifelse(is.na(order)=="TRUE", common_name, order),
          species_new = ifelse(is.na(species_new)=="TRUE", paste(genus_new, "spp."), #if no common name, make species name "Genus spp."
                               ifelse(species_new==genus_new, species_new, paste(genus_new,species_new)))) %>% #for those organisms with only a common name identifier for genus and species, only use the common name in the species_new column (to avoid duplication)
-  #filter(is.na(species_new)=="TRUE")
-  #filter(str_detect(species_new, "spp."))
-    mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected")) #add column for MPA versus non-MPA sites
+    mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected"), #add column for MPA versus non-MPA sites
+           order_new = ifelse(str_detect(species_new, pattern = "sponge"), "Other sponges", 
+                             ifelse(str_detect(species_new, pattern = "brown blade"), "Other brown algae",
+                                    ifelse(str_detect(species_new, pattern = "tunicate"), "Other tunicates",
+                                           ifelse(str_detect(species_new, pattern = "hydroid"), "Other hydroids",
+                                                  order_new)))),
+           genus_new = ifelse(str_detect(species_new, pattern = "red filament worm"), "Other worms",
+                              ifelse(str_detect(species_new, pattern = "anemone"), "Other anemones",
+                                            ifelse(str_detect(species_new, pattern = "algae"), "Other algae",
+                                                          ifelse(str_detect(species_new, pattern = "fine bryozoan"), "Other Cyclostomatids",
+                                                                 ifelse(str_detect(species_new, pattern = "encrusting bryozoan"), "Other Cheilostomatids",
+                                                                        ifelse(str_detect(species_new, pattern = "nongeniculate"), "Other red algae",
+                                                                               ifelse(str_detect(species_new, pattern = "spirorbid"), "Other Sabellids",
+                                                                                                                    ifelse(str_detect(species_new, pattern = "white worm"), "Other Sabellids",
+                              genus_new)))))))))
 
-sort(unique(reef1_tidy$location))
+sort(unique(reef1_tidy$genus_new))
 
 reef1_location <- reef1_tidy %>% 
   distinct(location, latitude, longitude)
@@ -212,7 +218,45 @@ sankeyNetwork(Links = links, Nodes = nodes,
               fontSize = 12, nodeWidth = 30,
               colourScale = colorJS3,
               LinkGroup="group", NodeGroup = NULL)
+```
 
+#Fix Neighbors tab table
+```{r}
+#Find number of times focal phylum makes an appearance
+reef_focal <- reef1_tidy %>%
+  filter(value > "0") %>% 
+  mutate(to_match = ifelse(phylum %in% c("Cnidaria"), filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal phylum in the plot at least once
+  filter(filename %in% to_match) %>% #if focal phylum is present, keep all observations of that plot ("filename")
+  filter(!str_detect(to_match, pattern="FALSE")) %>% #drop rows containing FALSE
+  distinct(filename) #get unique plots containing focal phylum
+
+present <- nrow(reef_focal)
+
+#Find number of times neighbor phyla make an appearance
+reef_neighbor <- reef1_tidy %>%
+  filter(value > "0") %>%
+  mutate(to_match = ifelse(phylum %in% c("Phoronida"), filename, "FALSE")) %>%
+  filter(filename %in% to_match) %>%
+  filter(!str_detect(to_match, pattern="FALSE")) %>% 
+  distinct(filename)
+
+absent <- nrow(reef_neighbor)
+
+#Find number of times focal phylum co-occurs with neighbor genus
+reef_together <- reef1_tidy %>%
+  filter(value > "0") %>% 
+  mutate(to_match = ifelse(phylum %in% "cnidaria", filename, "FALSE")) %>%
+  filter(filename %in% to_match) %>% 
+  mutate(to_match = ifelse(phylum %in% c("arthropoda", "chordata", "echinodermata"), filename, "FALSE")) %>% #do the same thing again for the neighbor phyla
+  filter(filename %in% to_match) %>% 
+  distinct(filename)
+
+neighborly <- nrow(reef_together)
+
+#Create basic table
+reef_table <- as.data.frame(cbind(present, absent, neighborly))%>% 
+  mutate(percent_occur = neighborly/present,
+         percent_absent = neighborly/absent)
 ```
 
 
