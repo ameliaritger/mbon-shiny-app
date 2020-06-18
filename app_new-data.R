@@ -682,7 +682,7 @@ observeEvent(input$searchaphylum,{
 #create species tree
 #Set order of tree hierarchy
 speciesTree <- reactive(unique(reef_tidy[reef_tidy$phylum==input$phylumSelectComboTree,
-                                  c("phylum", "genus_new", "species_new")]))
+                                  c("phylum", "order_new","genus_new", "species_new")]))
 
 colorTree <- reactive(as.vector(pal[c(input$phylumSelectComboTree)])) #reactively generate color code for phylum of interest 
 
@@ -691,7 +691,7 @@ output$species_tree <- renderCollapsibleTree(
     speciesTree(),
     root = input$phylumSelectComboTree, #tree root is phylum of interest 
     attribute = "species_new",
-    hierarchy = c("genus_new","species_new"),
+    hierarchy = c("order_new","genus_new","species_new"),
     fill = colorTree(), #reactively fill color with phylum color palette
     fontSize = 13,
     zoomable = FALSE
