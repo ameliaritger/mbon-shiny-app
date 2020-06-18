@@ -253,7 +253,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                                                           numericInput('sankeynumber', 'Pick the number of top phyla to display!', 1, min = 1, max = 5))),
                                          column(12, align="left",
                                                 conditionalPanel(condition = "input.pickasankey == '1'",
-                                                                h6(p(em("The width of the bands in a", HTML('<a href="https://en.wikipedia.org/wiki/Sankey_diagram" target="_blank">Sankey diagram</a>'), "are proportional to abundance.")))))
+                                                                h6(p(em("The width of the nodes in a", HTML('<a href="https://en.wikipedia.org/wiki/Sankey_diagram" target="_blank">Sankey diagram</a>'), "are proportional to abundance.")))))
                                                   ),
                                          br(),
                                          h5(p("Curious what a quadrat from the location looks like?")),
