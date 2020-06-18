@@ -115,7 +115,8 @@ tmap_mode("view") #view = interactive
 reef1_map_index
 ```
 
-Community tab troubleshooting
+# Community tab troubleshooting
+### Plot
 ```{r}
 #generate reactive summary data
 reef1_summary_community <- reef1_tidy %>%
@@ -142,9 +143,8 @@ reef1_summary_community <- reef1_tidy %>%
     theme(text = element_text(size = 15))
 ```
 
-
+### Sankey diagram
 ```{r}
-#Sankey diagram
 #Prep data
 reef_top <- reef1_summary_community %>% 
   group_by(phylum) %>% 
@@ -168,31 +168,31 @@ node_names <- factor(sort(unique(as.character(unname(unlist(reef_names))))))
 nodes <- data.frame(name = node_names)
 
 links <- data.frame(source = match(c(reef_sankey$phylum,reef_sankey$order_new), node_names) - 1,
-             target = match(c(reef_sankey$order_new, reef_sankey$species_new), node_names) - 1,
-             value = reef_sankey$`mean abundance`,
-             group = c(reef_sankey$phylum, reef_sankey$order_new)) %>% 
+                    target = match(c(reef_sankey$order_new, reef_sankey$species_new), node_names) - 1,
+                    value = reef_sankey$`mean abundance`,
+                    group = c(reef_sankey$phylum, reef_sankey$order_new)) %>%
   filter(!str_detect(group, pattern=" "))
 
-pal_noo <- as.data.frame(pal)
-pal_noo$pal <- as.character(pal)
-pal_noo <- pal_noo %>% 
-  mutate(phylum = row.names(pal_noo))
 
-nodes2 <- nodes %>% 
-  rename(phylum=name)
-links_new <- left_join(nodes2, pal_noo, by="phylum")
 
-reef1_tidy_org <- merge(reef1_tidy, pal_noo, by="phylum")
-reef_palette <- reef1_tidy_org %>% 
+pal_df <- as.data.frame(pal)
+pal_df$pal <- as.character(pal)
+pal_df <- pal_df %>% 
+  mutate(phylum = row.names(pal_df))
+
+links_new <- left_join(nodes, pal_df, by=c("name"="phylum"))
+
+reef1_tidy_org <- merge(reef1_tidy, pal_df, by="phylum")
+reef_palette <- merge(reef1_tidy, pal_df, by="phylum") %>% 
   select(species_new, genus_new, order_new, phylum, pal) %>% 
   distinct(species_new, .keep_all=TRUE) %>% 
   pivot_longer(species_new:phylum) %>% 
   rename(color=pal,
          group=name,
-         phylum=value) %>% 
-  distinct(phylum, .keep_all=TRUE)
+         name=value) %>% 
+  distinct(name, .keep_all=TRUE)
 
-links_noo <- left_join(links_new, reef_palette, by = "phylum")
+links_noo <- left_join(links_new, reef_palette, by = "name")
 
 #mutate(color = ifelse(group %in% pal_noo$organism, pal_noo$pal, "random"))
 #sample(pal, 60, replace=TRUE))
@@ -203,8 +203,6 @@ my_color <- 'd3.scaleOrdinal() .domain(["Annelida","Arthropoda","Chlorophyta","C
 colors2 <- paste(links_noo$color, collapse = '", "')
 organism <- paste(links_noo$phylum, collapse = '", "')
 colorJS2 <- paste('d3.scaleOrdinal(["', colors2, '"])')
-
-
 colorJS3 <- paste('d3.scaleOrdinal() .domain(["',organism,'"]) .range(["',colors2,'"])')
                   
 #Sankey diagram
@@ -220,85 +218,4 @@ sankeyNetwork(Links = links, Nodes = nodes,
 
 # TO DO:
 - group all of the common names together (like anemones, bryozoans)
-- fix Community tab
-
-```{r}
-data <- structure(list(nodes = structure(list(name = c("Source0", "Source1", 
-"Source2", "Source3", "Source4", "Source5", "Source6", "Source7", 
-"Source8", "Source9", "Source10", "Target11", "Target12", "Target13", 
-"Target14", "Target15", "Target16", "Target17", "Target18", "Target19", 
-"Target20", "Target21", "Target22", "Target23", "Target24", "Target25", 
-"Target26", "Target27", "Target28", "Target29", "Target30", "Target31", 
-"Target32", "Target33", "Target34", "Target35", "Target36", "Target37", 
-"Target38", "Target39", "Target40", "Target41", "Target42", "Target43", 
-"Target44", "Target45", "Target46", "Target47"), group = c("Source0", 
-"Source1", "Source2", "Source3", "Source4", "Source5", "Source6", 
-"Source7", "Source8", "Source9", "Source10", "Target", "Target", 
-"Target", "Target", "Target", "Target", "Target", "Target", "Target", 
-"Target", "Target", "Target", "Target", "Target", "Target", "Target", 
-"Target", "Target", "Target", "Target", "Target", "Target", "Target", 
-"Target", "Target", "Target", "Target", "Target", "Target", "Target", 
-"Target", "Target", "Target", "Target", "Target", "Target", "Target"
-), colors = c("#9E0142", "#D53E4F", "#F46D43", "#FDAE61", "#FEE08B", 
-"#FFFFBF", "#E6F598", "#ABDDA4", "#66C2A5", "#3288BD", "#5E4FA2", 
-"#969696", "#969696", "#969696", "#969696", "#969696", "#969696", 
-"#969696", "#969696", "#969696", "#969696", "#969696", "#969696", 
-"#969696", "#969696", "#969696", "#969696", "#969696", "#969696", 
-"#969696", "#969696", "#969696", "#969696", "#969696", "#969696", 
-"#969696", "#969696", "#969696", "#969696", "#969696", "#969696", 
-"#969696", "#969696", "#969696", "#969696", "#969696", "#969696", 
-"#969696")), .Names = c("name", "group", "colors"), row.names = c(NA, 
--48L), class = "data.frame"), links = structure(list(source = c(0, 
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
-1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
-2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 
-3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 
-6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 
-8, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10
-), target = c(11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 
-23, 13, 18, 15, 11, 12, 24, 21, 25, 26, 27, 19, 28, 16, 22, 29, 
-30, 31, 32, 18, 16, 15, 13, 27, 29, 19, 33, 34, 31, 35, 21, 24, 
-11, 30, 36, 28, 37, 38, 39, 40, 26, 41, 11, 12, 15, 18, 19, 14, 
-13, 16, 27, 34, 20, 22, 25, 12, 27, 16, 18, 13, 11, 12, 11, 14, 
-27, 21, 16, 18, 22, 13, 15, 19, 16, 11, 12, 39, 12, 14, 18, 11, 
-42, 43, 44, 13, 11, 18, 15, 12, 19, 45, 31, 16, 20, 46, 40, 47, 
-11, 12, 18, 16, 14, 19, 15, 11, 12, 16, 13, 18, 14, 34, 31, 15
-), value = c(5.8, 3.2, 5, 2.4, 2.5, 2.7, 3.5, 2.5, 3.5, 1.4, 
-2.9, 2.4, 1.3, 12.1, 7.4, 5, 11.2, 5.6, 6.4, 8.8, 2.6, 3.5, 7, 
-10, 4.5, 6, 6.5, 5.8, 5.4, 6.2, 8.9, 5.5, 4.8, 3.4, 6.5, 5, 4, 
-6.4, 7.3, 4.4, 4.2, 1.7, 5.1, 3.6, 6.4, 3.4, 2.5, 2.6, 2.3, 2.3, 
-3.2, 1.6, 1.7, 3.7, 8, 4.4, 3.1, 4.1, 5.9, 2.8, 5, 3.2, 3.7, 
-3.4, 1.8, 3.2, 1.2, 4.1, 5.2, 4.5, 4.8, 7.1, 7.3, 4.6, 8.4, 3.4, 
-5.2, 6.1, 4.3, 4.5, 4.5, 6.5, 2.8, 6.3, 5.3, 8.2, 3.8, 4.3, 4.2, 
-3.4, 5.4, 7.9, 1.2, 1.4, 1.4, 6.6, 6.8, 4.2, 2.9, 3.1, 5.3, 2.6, 
-3.2, 2.9, 1.7, 1.9, 1.4, 8, 8, 4, 5, 4.3, 2.9, 6.9, 3, 8.7, 4.5, 
-4.2, 6.6, 4.4, 2.7, 4.4, 4.3, 2.8), group = c("Source0", "Source0", 
-"Source0", "Source0", "Source0", "Source0", "Source0", "Source0", 
-"Source0", "Source0", "Source0", "Source0", "Source0", "Source1", 
-"Source1", "Source1", "Source1", "Source1", "Source1", "Source1", 
-"Source1", "Source1", "Source1", "Source1", "Source1", "Source1", 
-"Source1", "Source1", "Source1", "Source1", "Source1", "Source2", 
-"Source2", "Source2", "Source2", "Source2", "Source2", "Source2", 
-"Source2", "Source2", "Source2", "Source2", "Source2", "Source2", 
-"Source2", "Source2", "Source2", "Source2", "Source2", "Source2", 
-"Source2", "Source2", "Source2", "Source2", "Source3", "Source3", 
-"Source3", "Source3", "Source3", "Source3", "Source3", "Source3", 
-"Source3", "Source3", "Source3", "Source3", "Source3", "Source4", 
-"Source4", "Source4", "Source4", "Source4", "Source4", "Source5", 
-"Source5", "Source5", "Source5", "Source5", "Source5", "Source5", 
-"Source5", "Source5", "Source5", "Source5", "Source6", "Source6", 
-"Source6", "Source6", "Source7", "Source7", "Source7", "Source7", 
-"Source7", "Source7", "Source7", "Source8", "Source8", "Source8", 
-"Source8", "Source8", "Source8", "Source8", "Source8", "Source8", 
-"Source8", "Source8", "Source8", "Source9", "Source9", "Source9", 
-"Source9", "Source9", "Source9", "Source9", "Source9", "Source10", 
-"Source10", "Source10", "Source10", "Source10", "Source10", "Source10", 
-"Source10", "Source10")), .Names = c("source", "target", "value", 
-"group"), row.names = c(NA, -124L), class = "data.frame")), .Names = c("nodes", 
-"links"))
-
-colors <- paste(data$nodes$colors, collapse = '", "')
-colorJS <- paste('d3.scaleOrdinal(["', colors, '"])')
-
-```
-
+- fix Neighbors tab >> picking neighbors that are not even present at location must include them in the table calcuations
