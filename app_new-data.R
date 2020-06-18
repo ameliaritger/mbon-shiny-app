@@ -39,6 +39,9 @@ options(repos = BiocManager::repositories())
 ## Read in data
 reef<- read_csv("MBON_photo_quadrat_point_cover_20200612.csv")
 
+#Generate list of MPA sites
+mpa_sites <- c("Anacapa Landing", "Arroyo Quemado", "Carpinteria", "Cathedral Cove", "Gull Island", "Isla Vista", "Naples", "West End Cat Rock")
+
 #Tidy up the data
 reef_tidy <- reef %>%
   clean_names() %>% #standardize names
@@ -60,7 +63,24 @@ reef_tidy <- reef %>%
                               ifelse(species_new==genus_new, species_new, paste(genus_new,species_new)))) %>% #for those organisms with only a common name identifier for genus and species, only use the common name in the species_new column (to avoid duplication)
   #filter(is.na(species_new)=="TRUE")
   #filter(str_detect(species_new, "spp."))
-  mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected")) #add column for MPA versus non-MPA sites
+  mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected"), #add column for MPA versus non-MPA sites
+         order_new = ifelse(str_detect(species_new, pattern = "sponge"), "Other sponges", 
+                            ifelse(str_detect(species_new, pattern = "brown blade"), "Other brown algae",
+                                   ifelse(str_detect(species_new, pattern = "tunicate"), "Other tunicates",
+                                          ifelse(str_detect(species_new, pattern = "hydroid"), "Other hydroids",
+                                                 ifelse(str_detect(species_new, pattern = "red filament worm"), "Other worms",
+                                                        ifelse(str_detect(species_new, pattern = "green filamentous algae"), "Other green algae",
+                                                               ifelse(str_detect(species_new, pattern = "red filamentous algae"), "Other red algae",
+                                                                      ifelse(str_detect(species_new, pattern = "red turf algae"), "Other red algae",
+                                                                             ifelse(str_detect(species_new, pattern = "red feather a algae"), "Other red algae",
+                                                                                    order_new))))))))),
+         genus_new = ifelse(str_detect(species_new, pattern = "anemone"), "Other anemones",
+                                          ifelse(str_detect(species_new, pattern = "fine bryozoan"), "Other Cyclostomatids",
+                                                 ifelse(str_detect(species_new, pattern = "encrusting bryozoan"), "Other Cheilostomatids",
+                                                        ifelse(str_detect(species_new, pattern = "nongeniculate"), "Other coralline algae",
+                                                               ifelse(str_detect(species_new, pattern = "spirorbid"), "Other Sabellids",
+                                                                      ifelse(str_detect(species_new, pattern = "white worm"), "Other Sabellids",
+                                                                             genus_new)))))))
 
 #Create separate dataframe of just latitude, longitude, and locations (use for later plotting species diversity/richness at each location)
 reef_location <- reef_tidy %>% 
@@ -104,9 +124,6 @@ pal <- c(
   "Porifera" = "#EEDC82",
   "Rhodophyta" = "#DB7093"
 )
-
-#Generate list of MPA sites
-mpa_sites <- c("Anacapa Landing", "Arroyo Quemado", "Carpinteria", "Cathedral Cove", "Gull Island", "Isla Vista", "Naples", "West End Cat Rock")
 
 ####################################################################
 #Create user interface
@@ -305,7 +322,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          #plotlyOutput(outputId="plot_heatmap"),
                                          br(),
                                          h5(p(em("What is the difference between the plot and the table?"))),
-                                         p(strong("The plot"), "displays the unique number of quadrats containing the focal organism and", em("each"), "neighbor organism.", strong("The table"), "displays the unique number of quadrats containing the focal organism and", em("all"), "neighbor organisms."),
+                                         p(strong("The plot"), "displays the unique number of quadrats containing the focal organism and", em("each"), "neighbor organism.", strong("The table"), "displays the unique number of quadrats containing the focal organism and", em("all"), "neighbor organisms,", em("excluding"), "those neighbor organisms that are not present at the chosen location(s)."),
                                          p("Thus, if a single quadrat contains the focal organism and three neighbor organisms, the plot would allocate a value of 1 for each neighbor organism (each bar on the plot), and the table would allocate a value of 1 for that quadrat (column three on the table)"),
                                          conditionalPanel(
                                            condition = "input.pickaplot == '1'",
@@ -413,7 +430,7 @@ reef_table <- reactive({
     tab_options(table.width = pct(90)) %>% #make the table width 80% of the page width
     cols_label(V1=paste("Quadrats with",input$pickaphylum),
                V2="Quadrats with neighbors",
-               V3=paste("Quadrats with both",input$pickaphylum,"and all neighbors"),
+               V3=paste("Quadrats with both",input$pickaphylum,"and neighbors"),
                percent_focal=paste("Percent", input$pickaphylum, "co-occurrs with neighbors"),
                percent_neighbor=paste("Percent neighbors co-occur with", input$pickaphylum))
 })
@@ -535,8 +552,7 @@ links <- reactive({
   data.frame(source = match(c(reef_sankey()$phylum, reef_sankey()$order_new), node_names()) - 1,
              target = match(c(reef_sankey()$order_new, reef_sankey()$species_new), node_names()) - 1,
              value = reef_sankey()$`mean abundance`,
-             group = c(reef_sankey()$phylum, reef_sankey()$order_new)) %>% 
-    filter(!str_detect(group, pattern=" "))
+             group = c(reef_sankey()$phylum, reef_sankey()$order_new))
 })
 
 #Set color palette that can be recognized by sankeyNetwork
@@ -568,12 +584,12 @@ colors <- reactive({
   paste(color_df()$color, collapse = '", "')
 })
 
-organism <- reactive({
+critters <- reactive({
   paste(color_df()$name, collapse = '", "')
 })
 
 colorJS <- reactive({
-  paste('d3.scaleOrdinal() .domain(["',organism(),'"]) .range(["',colors(),'"])')
+  paste('d3.scaleOrdinal() .domain(["',critters(),'"]) .range(["',colors(),'"])')
 })
 
 #Sankey diagram
