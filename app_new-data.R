@@ -512,15 +512,15 @@ reef_sankey <- reactive({
   filter(value > "0") %>% #filter out species not present
   filter(location==input$locationselect, #filter for location of interest
           str_detect(orientation,pattern=input$orientationselect)) %>% 
-  group_by(phylum, species) %>%
+  group_by(phylum, order_new, species_new) %>%
   summarize(`mean abundance` = mean(value)) %>% 
   filter(phylum %in% c(reef_top()$phylum)) %>% 
-  select(phylum, species, `mean abundance`)
+  select(phylum, order_new, species_new, `mean abundance`)
 })
 
 reef_names <- reactive({
   reef_sankey() %>% 
-  select(phylum, species)
+  select(phylum, order_new, species_new)
 })
 
 node_names <- reactive({
@@ -532,14 +532,49 @@ nodes <- reactive({
 })
 
 links <- reactive({
-  data.frame(source = match(reef_sankey()$phylum, node_names()) - 1,
-             target = match(reef_sankey()$species, node_names()) - 1,
+  data.frame(source = match(c(reef_sankey()$phylum, reef_sankey()$order_new), node_names()) - 1,
+             target = match(c(reef_sankey()$order_new, reef_sankey()$species_new), node_names()) - 1,
              value = reef_sankey()$`mean abundance`,
-             group = reef_sankey()$phylum)
+             group = c(reef_sankey()$phylum, reef_sankey()$order_new)) %>% 
+    filter(!str_detect(group, pattern=" "))
 })
 
 #Set color palette that can be recognized by sankeyNetwork
-my_color <- 'd3.scaleOrdinal() .domain(["Annelida","Arthropoda", "Chlorophyta","Chordata","Cnidaria","Echinodermata","Ectoprocta","Fish","Ochrophyta","Mollusca","Phoronida","Porifera","Rhodophyta"]) .range(["#D2691E", "#CDCDB4", "#3CB371", "#EE9A00","#6CA6CD", "#FF6347", "#F4A460", "#CD3700", "#6B8E23", "#708090", "#FAFAD2","#EEDD82", "#DB7093"])'
+# pal_df <- as.data.frame(pal)
+# pal_df$pal <- as.character(pal)
+# pal_df <- pal_df %>% 
+#   mutate(phylum = row.names(pal_df))
+# 
+# links_new <- reactive({
+#   left_join(nodes(), pal_df, by=c("name"="phylum"))
+# })
+# 
+# reef_palette <- reactive({
+#   merge(reef_tidy(), pal_df, by="phylum") %>% 
+#   select(species_new, genus_new, order_new, phylum, pal) %>% 
+#   distinct(species_new, .keep_all=TRUE) %>% 
+#   pivot_longer(species_new:phylum) %>% 
+#   rename(color=pal,
+#          group=name,
+#          name=value) %>% 
+#   distinct(name, .keep_all=TRUE)
+# })
+# 
+# color_df <- reactive({
+#   left_join(links_new(), reef_palette(), by = "name")
+# })
+# 
+# colors <- reactive({
+#   paste(color_df()$color, collapse = '", "')
+# })
+# 
+# organism <- reactive({
+#   paste(color_df()$name, collapse = '", "')
+# })
+# 
+# colorJS <- reactive({
+#   paste('d3.scaleOrdinal() .domain(["',organism(),'"]) .range(["',colors2(),'"])')
+# })
 
 #Sankey diagram
 output$sankey_plot <- renderSankeyNetwork({
@@ -547,7 +582,7 @@ output$sankey_plot <- renderSankeyNetwork({
               Source = "source", Target = "target",
               Value = "value", NodeID = "name",
               fontSize = 12, nodeWidth = 30,
-              colourScale = my_color,
+              #colourScale = colorJS(),
               LinkGroup="group", NodeGroup = NULL)
 })
 
