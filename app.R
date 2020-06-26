@@ -115,7 +115,8 @@ pal <- c(
 )
 
 #Generate list of MPA sites
-mpa_sites <- c("Anacapa Landing", "Arroyo Quemado", "Carp Reef", "Cathedral Cove", "Gull Island", "IV Reef", "Naples", "West-End & Cat Rock")
+mpa_sites <- c("Anacapa Landing", "Cathedral Cove", "Gull Island", "Isla Vista", "Naples")
+#"Arroyo Quemado", "Carpinteria", "West End Cat Rock"
 
 ####################################################################
 #Create user interface
