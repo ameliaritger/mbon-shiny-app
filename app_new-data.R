@@ -40,13 +40,14 @@ options(repos = BiocManager::repositories())
 reef<- read_csv("MBON_photo_quadrat_point_cover_20200612.csv")
 
 #Generate list of MPA sites
-mpa_sites <- c("Anacapa Landing", "Arroyo Quemado", "Carpinteria", "Cathedral Cove", "Gull Island", "Isla Vista", "Naples", "West End Cat Rock")
+mpa_sites <- c("Anacapa Landing", "Cathedral Cove", "Gull Island", "Isla Vista", "Naples")
+#"Arroyo Quemado", "Carpinteria", "West End Cat Rock"
 
 #Tidy up the data
 reef_tidy <- reef %>%
   clean_names() %>% #standardize names
-  filter(!category=="no data") %>% #remove values related to data collection issue
-  filter(!category=="substrate") %>% #remove substrate values
+  filter(!category=="no data",  #remove values related to data collection issue
+         !category=="substrate") %>% #remove substrate values
   rename(value = percent_cover,
          latitude = lat,
          longitude = lon) %>% 
@@ -80,8 +81,10 @@ reef_tidy <- reef %>%
                                                         ifelse(str_detect(species_new, pattern = "nongeniculate"), "Other coralline algae",
                                                                ifelse(str_detect(species_new, pattern = "spirorbid"), "Other Sabellids",
                                                                       ifelse(str_detect(species_new, pattern = "white worm"), "Other Sabellids",
-                                                                             genus_new)))))))
-
+                                                                             genus_new))))))) %>% 
+  mutate(common_name = replace_na(common_name, "N.A.")) %>% #replace NA values with N.A. (for future filter)
+  filter(!common_name=="dead") #remove dead organisms
+  
 #Create separate dataframe of just latitude, longitude, and locations (use for later plotting species diversity/richness at each location)
 reef_location <- reef_tidy %>% 
   distinct(location, latitude, longitude)
@@ -417,6 +420,7 @@ reef_together <- reactive({
     filter(location %in% c(input$pickalocation)) %>% #filter for location of interest
     group_by(filename) %>% #group by quadrat
     summarize(sample_size = n()) %>% #get the numer of times each quadrat has an observation (of any neighbor phylum)
+    ungroup() %>% 
     filter(sample_size==max(sample_size)) #only keep quadrats containing all selected neighboring phyla (AKA the "max" sample size)
 })
 
@@ -452,7 +456,8 @@ reef_heat <- reactive({
     filter(match=="retain" | value==1) %>% 
     select(filename, phylum, value) %>% 
     filter(value==1,
-           phylum %in% c(input$pickaphylum, input$coocurring))
+           phylum %in% c(input$pickaphylum, input$coocurring)) %>% 
+    ungroup()
 })
 
 reef_heat_melt <- reactive({
@@ -498,7 +503,8 @@ reef_summary_community <- reactive({
               median_count = median(value), #get the median count
               sd_count = sd(value), #get the s.d. count
               iqr = IQR(value), #get the interquartile range for the count
-              sample_size = n())
+              sample_size = n()) %>% 
+    ungroup()
 })
 
 #generate plot
@@ -521,7 +527,8 @@ reef_top <- reactive({
   reef_summary_community() %>% 
   group_by(phylum) %>% 
   tally(sample_size) %>% 
-  top_n(input$sankeynumber)
+  top_n(input$sankeynumber) %>% 
+  ungroup()
 })
 
 reef_sankey <- reactive({
@@ -532,7 +539,8 @@ reef_sankey <- reactive({
   group_by(phylum, order_new, species_new) %>%
   summarize(`mean abundance` = mean(value)) %>% 
   filter(phylum %in% c(reef_top()$phylum)) %>% 
-  select(phylum, order_new, species_new, `mean abundance`)
+  select(phylum, order_new, species_new, `mean abundance`) %>% 
+  ungroup()
 })
 
 reef_names <- reactive({
@@ -614,6 +622,7 @@ reef_summary_abundance <- reactive({
     summarize(Abundance = mean(value), #get the MEAN count
               sd_count = sd(value), #get the s.d. count
               sample_size = n()) %>%  #get the sample size
+    ungroup() %>% 
     mutate(mpa = ifelse(location %in% c(mpa_sites), "mpa", "unprotected")) %>% #add column for MPA versus non-MPA sites
     #filter(str_detect(mpa,pattern=input$mpaselect)) %>% #filter for orientation of interest
     filter(mpa %in% c(input$mpaselect_abundance))
