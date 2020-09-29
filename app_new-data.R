@@ -37,7 +37,7 @@ options(repos = BiocManager::repositories())
 
 ####################################################################
 ## Read in data
-reef<- read_csv("MBON_photo_quadrat_point_cover_20200612.csv")
+reef <- read_csv("MBON_photo_quadrat_point_cover_20200612.csv")
 
 #Generate list of MPA sites
 mpa_sites <- c("Anacapa Landing", "Cathedral Cove", "Gull Island", "Isla Vista", "Naples")
@@ -101,7 +101,7 @@ reef_vegan <- reef_tidy %>% #named so because of the vegan package!
 reef_vegan_subset <- reef_vegan %>%
   pivot_wider(names_from=species_new, values_from=mean_count) %>% 
   replace(is.na(.), 0) %>% #replace all NA values with zeros
-  select(`Abeitinaria spp.`:`Zonaria farlowii`)
+  select(`Abeitinaria spp.`:`Triopha catalinae`)
 
 Diversity <- diversity(reef_vegan_subset, index="shannon")
 Richness <- specnumber(reef_vegan_subset)
