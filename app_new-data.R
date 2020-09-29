@@ -405,8 +405,11 @@ reef_neighbor <- reactive({
   reef_tidy %>%
   filter(value > "0") %>% #filter out organisms not present
   filter(phylum %in% c(input$coocurring)) %>% #filter for neighbor phyla
-  filter(location %in% c(input$pickalocation)) %>% #filter for location of interest
-  distinct(filename) #get unique plot numbers that contain the neighbor phylum
+  distinct(filename, phylum, .keep_all=TRUE) %>% #filter for unique phylum values for each plot
+  group_by(filename) %>% #group by quadrat
+  summarize(sample_size = n()) %>% #get the number of times each quadrat has an observation (of any neighbor phylum)
+  ungroup() %>% 
+  filter(sample_size==max(sample_size))
 })
 
 #Find number of times focal genus co-occurs with neighbor genus
