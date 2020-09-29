@@ -326,7 +326,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          br(),
                                          h5(p(em("What is the difference between the plot and the table?"))),
                                          p(strong("The plot"), "displays the unique number of quadrats containing the focal organism and", em("each"), "neighbor organism.", strong("The table"), "displays the unique number of quadrats containing the focal organism and", em("all"), "neighbor organisms,", em("excluding"), "those neighbor organisms that are not present at the chosen location(s)."),
-                                         p("Thus, if a single quadrat contains the focal organism and three neighbor organisms, the plot would allocate a value of 1 for each neighbor organism (each bar on the plot), and the table would allocate a value of 1 for that quadrat (column three on the table). If a single quadrat contains at least one neighbor organism (not every neighbor organism selected need be present), the table allocates a value of 1 for that quadrat (column two on the table)."),
+                                         p("Thus, if a single quadrat contains the focal organism and three neighbor organisms, the plot would allocate a value of 1 for each neighbor organism (each bar on the plot), and the table would allocate a value of 1 for that quadrat (column three on the table)."),
                                          conditionalPanel(
                                            condition = "input.pickaplot == '1'",
                                            p("Like the plot,", strong("the heat map"), "displays the unique number of quadrats containing the focal organism and each neighbor organism, as well as the focal organism. The darker the shade of the box, the more quadrats containing both the focal organism and the neighbor organism (or focal organism.")),
@@ -337,6 +337,13 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                       br(),
                                       br(),
                                       gt_output(outputId="table_neighbor"),
+                                      br(),
+                                      fluidRow(
+                                        column(12, align="right",
+                                               h6(p(em(style="text-align: justify;",
+                                              "Please note that if you select the same organism as the focal and the neighbor, columns 2 and 3 will contain the same value.")))
+                                              )
+                                        ),
                                       br(),
                                       conditionalPanel(
                                         condition = "input.pickaplot == '1'",
@@ -394,33 +401,34 @@ output$plot_neighbor <- renderPlot({
 #Find number of times focal phylum makes an appearance
 reef_focal <- reactive({
   reef_tidy %>%
-  filter(value > "0") %>% #filter out organisms not present
-  filter(phylum == input$pickaphylum) %>% #filter for focal phylum
-  filter(location %in% c(input$pickalocation)) %>% #filter for location of interest
+  filter(value > "0", #filter out organisms not present 
+         phylum == input$pickaphylum, #filter for focal phylum
+         location %in% c(input$pickalocation)) %>% #filter for location of interest
   distinct(filename) #get unique plot numbers that contain the focal phylum
 })
 
 #Find number of times neighbor genera make an appearance
 reef_neighbor <- reactive({
   reef_tidy %>%
-  filter(value > "0") %>% #filter out organisms not present
-  filter(phylum %in% c(input$coocurring)) %>% #filter for neighbor phyla
-  distinct(filename, phylum, .keep_all=TRUE) %>% #filter for unique phylum values for each plot
-  group_by(filename) %>% #group by quadrat
-  summarize(sample_size = n()) %>% #get the number of times each quadrat has an observation (of any neighbor phylum)
-  ungroup() %>% 
-  filter(sample_size==max(sample_size))
+    filter(value > "0", #filter out organisms not present
+           phylum %in% c(input$coocurring), #filter for neighbor phyla
+           location %in% c(input$pickalocation)) %>% #filter for location of interest
+    distinct(filename, phylum, .keep_all=TRUE) %>% #filter for unique phylum values for each plot
+    group_by(filename) %>% #group by quadrat
+    summarize(sample_size = n()) %>% #get the number of times each quadrat has an observation (of any neighbor phylum)
+    ungroup() %>% 
+    filter(sample_size==max(sample_size))
 })
 
 #Find number of times focal genus co-occurs with neighbor genus
 reef_together <- reactive({
   reef_tidy %>%
     filter(value > "0") %>% #filter out organisms not present
-    mutate(to_match = ifelse(phylum %in% input$pickaphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
-    filter(filename %in% to_match) %>% #if focal genus is present, keep all observations of that plot ("filename")
-    distinct(filename, phylum, .keep_all=TRUE) %>% #filter for unique phylum values for each plot
-    filter(phylum %in% c(input$coocurring)) %>%  #filter for neighbor phyla
-    filter(location %in% c(input$pickalocation)) %>% #filter for location of interest
+    mutate(to_match = ifelse(phylum==input$pickaphylum, filename, "FALSE")) %>% #create a column that we can subset all rows in a plot based on the presence of focal genus in the plot at least once
+    filter(filename %in% to_match, #if focal genus is present, keep all observations of that plot ("filename")
+           phylum %in% c(input$coocurring),  #filter for neighbor phyla
+           location %in% c(input$pickalocation)) %>% #filter for location of interest
+    distinct(filename, phylum) %>% #filter for unique phylum values for each plot
     group_by(filename) %>% #group by quadrat
     summarize(sample_size = n()) %>% #get the number of times each quadrat has an observation (of any neighbor phylum)
     ungroup() %>% 
