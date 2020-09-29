@@ -253,8 +253,8 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                  ## TAB
                  
                  tabPanel("Community",
-                          h1("Community composition at each site"),
-                          p("Compare ecological communities on vertical and horizontal surfaces along the reef.", em("Calculated from presence (yes or no) in replicate quadrats at each of the 22 sites in the SBC.")),
+                          h1("Community composition at each location"),
+                          p("Compare ecological communities on vertical and horizontal surfaces along the reef.", em("Calculated from presence (yes or no) in replicate quadrats at each of the 22 locations in the SBC.")),
                           sidebarLayout(
                             sidebarPanel("",
                                          selectInput(inputId="locationselect",
@@ -297,7 +297,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
 
                  tabPanel("Neighbors",
                           h1("Will you be my neighbor? Evaluating how often organisms are found together."),
-                          p("Compare organismal co-occurrence across the SBC.", em("Calculated from presence (yes or no) in replicate quadrats at all 22 sites in the SBC.")),
+                          p("Compare organismal co-occurrence across the SBC.", em("Calculated from presence (yes or no) in replicate quadrats at all 22 locations in the SBC.")),
                           sidebarLayout(
                             sidebarPanel("",
                                          selectInput(inputId="pickaphylum",
@@ -329,7 +329,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          p("Thus, if a single quadrat contains the focal organism and three neighbor organisms, the plot would allocate a value of 1 for each neighbor organism (each bar on the plot), and the table would allocate a value of 1 for that quadrat (column three on the table)."),
                                          conditionalPanel(
                                            condition = "input.pickaplot == '1'",
-                                           p("Like the plot,", strong("the heat map"), "displays the unique number of quadrats containing the focal organism and each neighbor organism, as well as the focal organism. The darker the shade of the box, the more quadrats containing both the focal organism and the neighbor organism (or focal organism.")),
+                                           p("Like the plot,", strong("the heat map"), "displays the unique number of quadrats containing the focal organism and each neighbor organism, as well as the focal organism. The darker the shade of the box, the more quadrats containing both the focal organism and the neighbor organism.")),
                                          ),
                             mainPanel("",
                                       p(""),
@@ -341,7 +341,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                       fluidRow(
                                         column(12, align="right",
                                                h6(p(em(style="text-align: justify;",
-                                              "Please note that if you select the same organism as the focal and the neighbor, columns 2 and 3 will contain the same value.")))
+                                              "Please note that if the same organism is selected for both the focal and the neighbor, columns 2 and 3 will contain the same value.")))
                                               )
                                         ),
                                       br(),
