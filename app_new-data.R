@@ -101,7 +101,7 @@ reef_vegan <- reef_tidy %>% #named so because of the vegan package!
 reef_vegan_subset <- reef_vegan %>%
   pivot_wider(names_from=species_new, values_from=mean_count) %>% 
   replace(is.na(.), 0) %>% #replace all NA values with zeros
-  select(`Abeitinaria spp.`:`Triopha catalinae`)
+  select(`Abeitinaria spp.`:`Triopha catalinae`) #remove "location" column
 
 Diversity <- diversity(reef_vegan_subset, index="shannon")
 Richness <- specnumber(reef_vegan_subset)
@@ -326,7 +326,7 @@ ui <- navbarPage("Marine Biodiversity Observation Network",
                                          br(),
                                          h5(p(em("What is the difference between the plot and the table?"))),
                                          p(strong("The plot"), "displays the unique number of quadrats containing the focal organism and", em("each"), "neighbor organism.", strong("The table"), "displays the unique number of quadrats containing the focal organism and", em("all"), "neighbor organisms,", em("excluding"), "those neighbor organisms that are not present at the chosen location(s)."),
-                                         p("Thus, if a single quadrat contains the focal organism and three neighbor organisms, the plot would allocate a value of 1 for each neighbor organism (each bar on the plot), and the table would allocate a value of 1 for that quadrat (column three on the table)"),
+                                         p("Thus, if a single quadrat contains the focal organism and three neighbor organisms, the plot would allocate a value of 1 for each neighbor organism (each bar on the plot), and the table would allocate a value of 1 for that quadrat (column three on the table). If a single quadrat contains at least one neighbor organism (not every neighbor organism selected need be present), the table allocates a value of 1 for that quadrat (column two on the table)."),
                                          conditionalPanel(
                                            condition = "input.pickaplot == '1'",
                                            p("Like the plot,", strong("the heat map"), "displays the unique number of quadrats containing the focal organism and each neighbor organism, as well as the focal organism. The darker the shade of the box, the more quadrats containing both the focal organism and the neighbor organism (or focal organism.")),
@@ -406,7 +406,7 @@ reef_neighbor <- reactive({
   filter(value > "0") %>% #filter out organisms not present
   filter(phylum %in% c(input$coocurring)) %>% #filter for neighbor phyla
   filter(location %in% c(input$pickalocation)) %>% #filter for location of interest
-  distinct(filename) #get unique plot numbers that contain the focal phylum
+  distinct(filename) #get unique plot numbers that contain the neighbor phylum
 })
 
 #Find number of times focal genus co-occurs with neighbor genus
@@ -419,7 +419,7 @@ reef_together <- reactive({
     filter(phylum %in% c(input$coocurring)) %>%  #filter for neighbor phyla
     filter(location %in% c(input$pickalocation)) %>% #filter for location of interest
     group_by(filename) %>% #group by quadrat
-    summarize(sample_size = n()) %>% #get the numer of times each quadrat has an observation (of any neighbor phylum)
+    summarize(sample_size = n()) %>% #get the number of times each quadrat has an observation (of any neighbor phylum)
     ungroup() %>% 
     filter(sample_size==max(sample_size)) #only keep quadrats containing all selected neighboring phyla (AKA the "max" sample size)
 })
