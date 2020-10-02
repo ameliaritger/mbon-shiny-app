@@ -50,6 +50,7 @@ reef1_tidy <- reef1 %>%
   clean_names() %>% #standardize names
   filter(!category=="no data") %>% #remove values related to data collection issue
   filter(!category=="substrate") %>% #remove substrate values
+  filter(!common_name=="dead") %>% #remove dead organisms
   rename(value = percent_cover,
          latitude = lat,
          longitude = lon) %>% 
@@ -203,7 +204,7 @@ pal_df <- pal_df %>%
 links_new <- left_join(nodes, pal_df, by=c("name"="phylum"))
 
 #Add phylum color palette to reef_tidy df
-reef_palette <- merge(reef_palette, pal_df, by="phylum") %>% 
+reef_palette <- merge(reef1_tidy, pal_df, by="phylum") %>% 
   select(species_new, genus_new, order_new, phylum, pal) %>% 
   distinct(species_new, .keep_all=TRUE) %>% 
   pivot_longer(species_new:phylum) %>% 
@@ -232,8 +233,6 @@ sankeyNetwork(Links = links, Nodes = nodes,
               fontSize = 20, nodeWidth = 5,
               colourScale = colorJS,
               LinkGroup="group", NodeGroup = NULL)
-
-ggsave("temp_hist.png")
 ```
 
 #Fix Neighbors tab table
@@ -251,21 +250,46 @@ present <- nrow(reef_focal)
 #Find number of times neighbor phyla make an appearance
 reef_neighbor <- reef1_tidy %>%
   filter(value > "0") %>%
-  mutate(to_match = ifelse(phylum %in% c("Phoronida"), filename, "FALSE")) %>%
+  mutate(to_match = ifelse(phylum %in% c("Annelida", "Ectoprocta"), filename, "FALSE")) %>%
   filter(filename %in% to_match) %>%
   filter(!str_detect(to_match, pattern="FALSE")) %>% 
   distinct(filename)
+
+reef_neighbor2 <- reef1_tidy %>%
+  filter(value > "0",
+         phylum %in% c("Annelida", "Ectoprocta", "Arthropoda")) %>%  #filter for neighbor phyla
+  distinct(filename, phylum, .keep_all=TRUE) %>% #filter for unique phylum values for each plot
+  group_by(filename) %>% #group by quadrat
+  summarize(sample_size = n()) %>% #get the number of times each quadrat has an observation (of any neighbor phylum)
+  ungroup() %>% 
+  filter(sample_size==max(sample_size))
 
 absent <- nrow(reef_neighbor)
 
 #Find number of times focal phylum co-occurs with neighbor genus
 reef_together <- reef1_tidy %>%
   filter(value > "0") %>% 
-  mutate(to_match = ifelse(phylum %in% "cnidaria", filename, "FALSE")) %>%
+  mutate(to_match = ifelse(phylum=="Rhodophyta", filename, "FALSE")) %>%
   filter(filename %in% to_match) %>% 
-  mutate(to_match = ifelse(phylum %in% c("arthropoda", "chordata", "echinodermata"), filename, "FALSE")) %>% #do the same thing again for the neighbor phyla
+  filter(phylum %in% c("Annelida", "Ectoprocta", "Arthropoda")) %>% 
+  distinct(filename, phylum) %>% #filter for unique phylum values for each plot
+  group_by(filename) %>% #group by quadrat
+  summarize(sample_size = n()) %>% 
+  ungroup() %>% 
+  filter(sample_size==max(sample_size))
+
+%>%  #filter for neighbor phyla
+
+  mutate(to_match = ifelse(phylum %in% c("Arthropoda", "Annelida"), filename, "FALSE")) %>% #do the same thing again for the neighbor phyla
   filter(filename %in% to_match) %>% 
   distinct(filename)
+
+
+    group_by(filename) %>% #group by quadrat
+    summarize(sample_size = n()) %>% #get the number of times each quadrat has an observation (of any neighbor phylum)
+    ungroup() %>% 
+    filter(sample_size==max(sample_size)) #only keep quadrats containing all selected neighboring phyla (AKA the "max" sample size)
+})
 
 neighborly <- nrow(reef_together)
 
