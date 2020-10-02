@@ -1,13 +1,13 @@
-name: mbon-shiny-app-new
-title: mbon-shiny-app-new
+name: mbon-shiny-app
+title: mbon-shiny-app
 username:
 account: ameliaritger
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
-appId: 2474972
-bundleId: 3681754
-url: https://ameliaritger.shinyapps.io/mbon-shiny-app-new/
-when: 1601358848.23608
+appId: 2093041
+bundleId: 3696300
+url: https://ameliaritger.shinyapps.io/mbon-shiny-app/
+when: 1601663643.26689
 asMultiple: FALSE
 asStatic: FALSE
 ignoredFiles: app-draft.R|app-janitor-workaround.R|app.R|data_wrangling_notes.docx|image-gallery.R|MBON_photo_quadrat_occurrence_20200612.csv|MBONReef_Histogram.csv|MBONReef_Histogram.xlsx|new_data.Rmd|README.md|sankey.Rmd|shiny_prep.html|shiny_prep.Rmd|images
